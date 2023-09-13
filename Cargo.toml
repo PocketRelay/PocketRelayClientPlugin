@@ -18,12 +18,13 @@ log = "0.4.20"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 
-# Blaze packet system 
-blaze-pk = "1"
 # Blaze SSLv3 async TCPStream implementation
 blaze-ssl-async = "^0.3"
 # Library for obtaining the local IP address of the device
 local-ip-address = { version = "0.5.2", git = "https://github.com/jacobtread/local-ip-address.git" }
+
+tdf = { version = "0.1" }
+bytes = "1.4.0"
 
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }

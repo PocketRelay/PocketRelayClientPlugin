@@ -10,6 +10,7 @@ pub mod main;
 pub mod qos;
 pub mod redirector;
 pub mod telemetry;
+pub mod packet;
 
 /// Static variable used to store server tasks state
 static SERVER_TASKS: RwLock<Option<JoinSet<()>>> = RwLock::const_new(None);
