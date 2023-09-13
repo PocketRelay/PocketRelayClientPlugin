@@ -21,6 +21,7 @@
 
 The **Pocket Relay** software in all its forms are in no way or form supported, endorsed, or provided by BioWare or Electronic Arts. 
 
+The guide for using this plugin can be found [Here](https://pocket-relay.pages.dev/docs/client/plugin-client)
 
 ## What
 
