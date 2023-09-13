@@ -1,5 +1,6 @@
 use std::{env::current_exe, path::Path, process::exit};
 use crate::constants::APP_VERSION;
+use log::{debug, error};
 use native_windows_gui::{ simple_message, MessageParams, MessageIcons, MessageButtons, message, MessageChoice, error_message};
 use reqwest::header::{ACCEPT, USER_AGENT};
 use semver::Version;
@@ -66,11 +67,11 @@ pub async fn download_latest_release(
 
 /// Handles the updating process
 pub async fn update() {
-    println!("Checking for updates");
+    debug!("Checking for updates");
     let latest_release = match get_latest_release().await {
         Ok(value) => value,
         Err(err) => {
-            eprintln!("Failed to fetch latest release: {}", err);
+            error!("Failed to fetch latest release: {}", err);
             return;
         }
     };
@@ -83,7 +84,7 @@ pub async fn update() {
     let latest_version = match Version::parse(latest_tag) {
         Ok(value) => value,
         Err(err) => {
-            eprintln!("Failed to parse version of latest release: {}", err);
+            error!("Failed to parse version of latest release: {}", err);
             return;
         }
     };
@@ -92,15 +93,15 @@ pub async fn update() {
 
     if latest_version <= current_version {
         if current_version > latest_version {
-            println!("Future release is installed ({})", current_version);
+            debug!("Future release is installed ({})", current_version);
         } else {
-            println!("Latest version is installed ({})", current_version);
+            debug!("Latest version is installed ({})", current_version);
         }
 
         return;
     }
 
-    println!("New version is available ({})", latest_version);
+    debug!("New version is available ({})", latest_version);
 
     let asset_name = "pocket-relay-plugin.asi";
 
@@ -111,7 +112,7 @@ pub async fn update() {
     {
         Some(value) => value,
         None => {
-            eprintln!("Server release is missing the desired binary, cannot update");
+            error!("Server release is missing the desired binary, cannot update");
             return;
         }
     };
@@ -136,15 +137,15 @@ pub async fn update() {
     }
 
     let path = current_exe().expect("Unable to locate executable path");
-
     let parent = path.parent().expect("Missing exe parent directory");
 
     let asi_path = parent.join("asi");
 
+    let old_file = asi_path.join("pocket-relay-plugin.asi");
     let tmp_file = asi_path.join("pocket-relay-plugin.asi.tmp-download");
     let tmp_old = asi_path.join("pocket-relay-plugin.asi.tmp-old");
 
-    println!("Downloading release");
+    debug!("Downloading release");
 
     if let Err(err) = download_latest_release(asset, &tmp_file).await {
         error_message("Failed to download", &err.to_string());
@@ -155,12 +156,12 @@ pub async fn update() {
         return;
     }
 
-    println!("Swapping executable files");
+    debug!("Swapping executable files");
 
-    tokio::fs::rename(&path, &tmp_old)
+    tokio::fs::rename(&old_file, &tmp_old)
         .await
         .expect("Failed to rename executable to temp path");
-    tokio::fs::rename(&tmp_file, path)
+    tokio::fs::rename(&tmp_file, old_file)
         .await
         .expect("Failed to rename executable");
 
