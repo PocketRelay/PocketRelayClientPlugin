@@ -589,8 +589,9 @@ checksum = "57bcfdad1b858c2db7c38303a6d2ad4dfaf5eb53dfeb0910128b2c26d6158503"
 
 [[package]]
 name = "local-ip-address"
-version = "0.5.2"
-source = "git+https://github.com/jacobtread/local-ip-address.git#8be57e884721f8201ca04195472e5f6f3129fb5f"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "885efb07efcd6ae1c6af70be7565544121424fa9e5b1c3e4b58bbbf141a58cef"
 dependencies = [
  "libc",
  "neli",
