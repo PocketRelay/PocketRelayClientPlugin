@@ -943,6 +943,7 @@ dependencies = [
  "reqwest",
  "semver",
  "serde",
+ "serde_json",
  "tdf",
  "thiserror",
  "tokio",

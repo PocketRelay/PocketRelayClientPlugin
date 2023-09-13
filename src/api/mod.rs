@@ -50,15 +50,15 @@ pub enum LookupError {
 /// considered valid.
 ///
 /// `host` The host to try and lookup
-pub async fn try_lookup_host(host: String) -> Result<LookupData, LookupError> {
+pub async fn try_lookup_host(host: &str) -> Result<LookupData, LookupError> {
     let mut url = String::new();
 
     // Fill in missing host portion
     if !host.starts_with("http://") && !host.starts_with("https://") {
         url.push_str("http://");
-        url.push_str(&host)
+        url.push_str(host)
     } else {
-        url.push_str(&host);
+        url.push_str(host);
     }
 
     if !host.ends_with('/') {

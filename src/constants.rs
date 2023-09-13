@@ -17,3 +17,6 @@ pub const HTTP_PORT: u16 = 42131;
 
 /// Server identifier
 pub const SERVER_IDENT: &str = "POCKET_RELAY_SERVER";
+
+/// Name of the file that stores saved pocket relay configuration info
+pub const CONFIG_FILE_NAME: &str = "pocket-relay-client.json";

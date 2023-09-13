@@ -1,16 +1,19 @@
 use std::sync::Arc;
 
-use crate::api::{try_lookup_host, LookupData, LookupError};
+use crate::{
+    api::{try_lookup_host, LookupData, LookupError},
+    config::{write_config_file, ClientConfig},
+};
 use log::{debug, error};
 use std::future::Future;
 use tokio::{join, sync::RwLock, task::JoinSet};
 
 pub mod http;
 pub mod main;
+pub mod packet;
 pub mod qos;
 pub mod redirector;
 pub mod telemetry;
-pub mod packet;
 
 /// Static variable used to store server tasks state
 static SERVER_TASKS: RwLock<Option<JoinSet<()>>> = RwLock::const_new(None);
@@ -21,9 +24,12 @@ static SERVER_TASKS: RwLock<Option<JoinSet<()>>> = RwLock::const_new(None);
 ///
 /// # Arguments
 /// * host - The host to attempt to connect to
-pub async fn try_start_servers(host: String) -> Result<Arc<LookupData>, LookupError> {
+pub async fn try_start_servers(
+    host: String,
+    remember: bool,
+) -> Result<Arc<LookupData>, LookupError> {
     // Attempt to lookup the provided server
-    let result = try_lookup_host(host).await?;
+    let result = try_lookup_host(&host).await?;
     let result = Arc::new(result);
 
     // Stop all existing server tasks
@@ -31,6 +37,13 @@ pub async fn try_start_servers(host: String) -> Result<Arc<LookupData>, LookupEr
 
     // Start new server tasks
     start_server_tasks(result.clone()).await;
+
+    if remember {
+        write_config_file(&ClientConfig {
+            connection_url: host,
+        })
+        .await;
+    }
 
     Ok(result)
 }

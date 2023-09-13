@@ -1,8 +1,10 @@
 #![allow(clippy::missing_safety_doc)]
 
+use config::read_config_file;
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
 pub mod api;
+pub mod config;
 pub mod constants;
 pub mod hooks;
 pub mod interface;
@@ -34,10 +36,13 @@ unsafe extern "system" fn DllMain(dll_module: usize, call_reason: u32, _: *mut (
                     .enable_all()
                     .build()
                     .expect("Failed building the Runtime");
+
+                let config = runtime.block_on(read_config_file());
+
                 let handle = runtime.handle().clone();
 
                 // Initialize the UI
-                interface::init(handle);
+                interface::init(handle, config);
 
                 // Block for CTRL+C to keep servers alive when window closes
                 let shutdown_signal = tokio::signal::ctrl_c();
