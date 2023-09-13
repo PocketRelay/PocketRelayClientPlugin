@@ -10,6 +10,7 @@ pub mod hooks;
 pub mod interface;
 pub mod pattern;
 pub mod servers;
+pub mod update;
 
 #[no_mangle]
 #[allow(non_snake_case, unused_variables)]
@@ -36,6 +37,8 @@ unsafe extern "system" fn DllMain(dll_module: usize, call_reason: u32, _: *mut (
                     .enable_all()
                     .build()
                     .expect("Failed building the Runtime");
+
+                runtime.spawn(update::update());
 
                 let config = runtime.block_on(read_config_file());
 
