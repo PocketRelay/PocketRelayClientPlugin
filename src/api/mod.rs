@@ -101,11 +101,11 @@ pub async fn try_lookup_host(host: &str) -> Result<LookupData, LookupError> {
 
     let response = match response.error_for_status() {
         Ok(value) => value,
-        Err(value) => {
-            error!("Server responded with error: {}", value);
+        Err(err) => {
+            error!("Server responded with error: {}", err);
             return Err(LookupError::ErrorResponse(
-                value.status().unwrap_or_default(),
-                value,
+                err.status().unwrap_or_default(),
+                err,
             ));
         }
     };

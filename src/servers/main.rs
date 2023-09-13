@@ -1,4 +1,9 @@
-use crate::{api::LookupData, constants::MAIN_PORT, servers::spawn_task};
+use crate::{
+    api::LookupData,
+    constants::{APP_VERSION, MAIN_PORT},
+    servers::spawn_task,
+};
+use hyper::header::USER_AGENT;
 use log::{debug, error};
 use native_windows_gui::error_message;
 use reqwest::{
@@ -59,10 +64,18 @@ async fn handle_blaze(mut client: TcpStream, target: Arc<LookupData>) {
         target.scheme, target.host, target.port, UPGRADE_ENDPOINT
     );
 
+    let user_agent = format!("PocketRelayClient/v{}", APP_VERSION);
+
     // Create the HTTP Upgrade headers
     let mut headers = HeaderMap::new();
     headers.insert(header::CONNECTION, HeaderValue::from_static("Upgrade"));
     headers.insert(header::UPGRADE, HeaderValue::from_static("blaze"));
+    headers.insert(
+        USER_AGENT,
+        HeaderValue::from_str(&user_agent).expect("User agent header was invalid"),
+    );
+
+    // TODO: Once users have started updating servers these fields can be removed
 
     // Append the schema header
     if let Ok(scheme_value) = HeaderValue::from_str(&target.scheme) {
@@ -90,6 +103,15 @@ async fn handle_blaze(mut client: TcpStream, target: Arc<LookupData>) {
         Ok(value) => value,
         Err(err) => {
             error!("Failed to get server pipe response: {}", err);
+            return;
+        }
+    };
+
+    // Check the server response wasn't an error
+    let response = match response.error_for_status() {
+        Ok(value) => value,
+        Err(err) => {
+            error!("Server upgrade responded with error: {}", err);
             return;
         }
     };
