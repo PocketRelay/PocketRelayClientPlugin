@@ -2,7 +2,7 @@ use hyper::{
     header::{ACCEPT, USER_AGENT},
     StatusCode,
 };
-use log::{debug, error};
+use log::error;
 use reqwest::Client;
 use semver::Version;
 use serde::Deserialize;
@@ -93,6 +93,8 @@ pub async fn try_lookup_host(host: &str) -> Result<LookupData, LookupError> {
 
     #[cfg(debug_assertions)]
     {
+        use log::debug;
+
         debug!("Response Status: {}", response.status());
         debug!("HTTP Version: {:?}", response.version());
         debug!("Content Length: {:?}", response.content_length());
