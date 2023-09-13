@@ -1,0 +1,65 @@
+[package]
+name = "pocket-relay-asi"
+version = "0.0.1"
+edition = "2021"
+description = "ASI plugin for ME3 to allow playing on Pocket Relay servers"
+repository = "https://github.com/PocketRelay/PocketRelayHooks"
+license = "MIT"
+readme = "README.md"
+authors = ["Jacobtread <jacobtread@gmail.com>"]
+keywords = ["Hooking"]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+env_logger = "0.10.0"
+log = "0.4.20"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+
+# Blaze packet system 
+blaze-pk = "1"
+# Blaze SSLv3 async TCPStream implementation
+blaze-ssl-async = "^0.3"
+# Library for obtaining the local IP address of the device
+local-ip-address = { version = "0.5.2", git = "https://github.com/jacobtread/local-ip-address.git" }
+
+tokio-util = { version = "0.7", features = ["codec"] }
+futures-util = { version = "0.3", features = ["sink"] }
+thiserror = "1"
+semver = "1.0.18"
+hyper = { version = "0.14", features = ["server", "http1", "tcp", "runtime"] }
+
+[dependencies.windows-sys]
+version = "0.48"
+features = [
+    "Win32_Foundation",
+    "Win32_System_SystemServices",
+    "Win32_System_Memory",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Console",
+    "Win32_Networking_WinSock",
+]
+
+# Tokio async runtime
+[dependencies.tokio]
+version = "1"
+features = ["macros", "net", "parking_lot", "rt-multi-thread", "sync", "signal"]
+
+
+[dependencies.native-windows-gui]
+version = "1.0.13"
+
+
+# Compile x86
+# cargo build --release --target i686-pc-windows-msvc
+
+# Compile std to reduce size:
+# cargo +nightly build -Z build-std=std,panic_abort --release --target x86_64-pc-windows-msvc
+# [profile.release]
+# opt-level = "z"
+# codegen-units = 1
+# panic = "abort"
+# strip = true
+# lto = true
