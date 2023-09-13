@@ -7,14 +7,7 @@
 ## Table of Contents
 
 - [What](#what) What Pocket Relay Embedded client is
-- [Whats different](#whats-different) Whats different between this version and the previous client tool
 - [Whats been improved](#whats-been-improved) The improvements over the original tool
-- [Installation](#installation) The installation guide
-  - [1. Download patch file](#1-download-patch-file) 
-  - [2. Open game folder](#2-open-game-folder) 
-  - [3. Rename official file](#3-rename-official-file) 
-  - [4. Patch game](#4-patch-game) 
-  - [5. Done](#5-done) 
 - [Manually Building](#manually-building) Instructions for building manually
   - [Requirements](#requirements)
   - [1. Cloning sources](#1-cloning-sources)
