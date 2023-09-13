@@ -1,8 +1,14 @@
+use hyper::{
+    header::{ACCEPT, USER_AGENT},
+    StatusCode,
+};
+use log::{debug, error};
+use reqwest::Client;
 use semver::Version;
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::constants::{MIN_SERVER_VERSION, SERVER_IDENT};
+use crate::constants::{APP_VERSION, MIN_SERVER_VERSION, SERVER_IDENT};
 
 /// Details provided by the server. These are the only fields
 /// that we need the rest are ignored by this client.
@@ -39,6 +45,9 @@ pub enum LookupError {
     #[error("Failed to connect to server: {0}")]
     ConnectionFailed(reqwest::Error),
     /// The server gave an invalid response likely not a PR server
+    #[error("Server replied with error response: {0} {1}")]
+    ErrorResponse(StatusCode, reqwest::Error),
+    /// The server gave an invalid response likely not a PR server
     #[error("Invalid server response: {0}")]
     InvalidResponse(reqwest::Error),
     /// Server wasn't a valid pocket relay server
@@ -72,9 +81,34 @@ pub async fn try_lookup_host(host: &str) -> Result<LookupData, LookupError> {
 
     url.push_str("api/server");
 
-    let response = reqwest::get(url)
+    let client = Client::new();
+
+    let response = client
+        .get(url)
+        .header(ACCEPT, "application/json")
+        .header(USER_AGENT, format!("PocketRelayClient/v{}", APP_VERSION))
+        .send()
         .await
         .map_err(LookupError::ConnectionFailed)?;
+
+    #[cfg(debug_assertions)]
+    {
+        debug!("Response Status: {}", response.status());
+        debug!("HTTP Version: {:?}", response.version());
+        debug!("Content Length: {:?}", response.content_length());
+        debug!("HTTP Headers: {:?}", response.headers());
+    }
+
+    let response = match response.error_for_status() {
+        Ok(value) => value,
+        Err(value) => {
+            error!("Server responded with error: {}", value);
+            return Err(LookupError::ErrorResponse(
+                value.status().unwrap_or_default(),
+                value,
+            ));
+        }
+    };
 
     let url = response.url();
     let scheme = url.scheme().to_string();
