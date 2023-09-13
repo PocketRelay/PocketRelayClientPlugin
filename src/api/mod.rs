@@ -1,14 +1,15 @@
+use semver::Version;
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::constants::SERVER_IDENT;
+use crate::constants::{MIN_SERVER_VERSION, SERVER_IDENT};
 
 /// Details provided by the server. These are the only fields
 /// that we need the rest are ignored by this client.
 #[derive(Deserialize)]
 struct ServerDetails {
     /// The Pocket Relay version of the server
-    version: String,
+    version: Version,
     /// Server identifier checked to ensure its a proper server
     #[serde(default)]
     ident: Option<String>,
@@ -23,7 +24,7 @@ pub struct LookupData {
     /// The host address of the server
     pub host: String,
     /// The server version
-    pub version: String,
+    pub version: Version,
     /// The server port
     pub port: u16,
 }
@@ -40,8 +41,12 @@ pub enum LookupError {
     /// The server gave an invalid response likely not a PR server
     #[error("Invalid server response: {0}")]
     InvalidResponse(reqwest::Error),
+    /// Server wasn't a valid pocket relay server
     #[error("Server identifier was incorrect (Not a PocketRelay server?)")]
     NotPocketRelay,
+    /// Server version is too old
+    #[error("Server version is too outdated ({0}) this client requires servers of version {1} or greater")]
+    ServerOutdated(Version, Version),
 }
 
 /// Attempts to connect to the Pocket Relay HTTP server at the provided
@@ -88,6 +93,13 @@ pub async fn try_lookup_host(host: &str) -> Result<LookupData, LookupError> {
     // Handle invalid server ident
     if details.ident.is_none() || details.ident.is_some_and(|value| value != SERVER_IDENT) {
         return Err(LookupError::NotPocketRelay);
+    }
+
+    if details.version < MIN_SERVER_VERSION {
+        return Err(LookupError::ServerOutdated(
+            details.version,
+            MIN_SERVER_VERSION,
+        ));
     }
 
     Ok(LookupData {

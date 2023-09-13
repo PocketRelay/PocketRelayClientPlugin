@@ -30,7 +30,7 @@ bytes = "1.4.0"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = { version = "0.3", features = ["sink"] }
 thiserror = "1"
-semver = "1.0.18"
+semver = { version = "1.0", features = ["serde"] }
 hyper = { version = "0.14", features = ["server", "http1", "tcp", "runtime"] }
 
 [dependencies.windows-sys]
