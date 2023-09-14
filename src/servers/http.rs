@@ -58,12 +58,7 @@ async fn proxy_http(
     );
 
     let client = Client::new();
-    let proxy_response = match client
-        .get(target_url)
-        .headers(req.headers().clone())
-        .send()
-        .await
-    {
+    let proxy_response = match client.get(target_url).send().await {
         Ok(value) => value,
         Err(err) => {
             error!("Failed to send HTTP request: {}", err);
