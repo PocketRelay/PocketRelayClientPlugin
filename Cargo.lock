@@ -962,7 +962,7 @@ checksum = "9e76628b4d3a7581389a35d5b6e2139607ad7c75b17aed325f210aa91f4a9609"
 
 [[package]]
 name = "pocket-relay-plugin"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "blaze-ssl-async",
  "bytes",
