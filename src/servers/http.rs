@@ -8,8 +8,8 @@ use log::error;
 use native_windows_gui::error_message;
 use reqwest::Client;
 use std::convert::Infallible;
+use std::net::Ipv4Addr;
 use std::sync::Arc;
-use std::{net::Ipv4Addr, process::exit};
 use tokio::net::TcpListener;
 
 pub async fn start_server(target: Arc<LookupData>) {
@@ -17,9 +17,9 @@ pub async fn start_server(target: Arc<LookupData>) {
     let listener = match TcpListener::bind((Ipv4Addr::UNSPECIFIED, HTTP_PORT)).await {
         Ok(value) => value,
         Err(err) => {
-            let text = format!("Failed to start http: {}", err);
-            error_message("Failed to start", &text);
-            exit(1);
+            error_message("Failed to start http", &err.to_string());
+            error!("Failed to start http: {}", err);
+            return;
         }
     };
 
