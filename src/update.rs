@@ -177,10 +177,10 @@ pub async fn update() {
 
     debug!("Swapping executable files");
 
-    tokio::fs::rename(&path, &tmp_old)
+    tokio::fs::rename(&old_file, &tmp_old)
         .await
         .expect("Failed to rename executable to temp path");
-    tokio::fs::rename(&tmp_file, path)
+    tokio::fs::rename(&tmp_file, old_file)
         .await
         .expect("Failed to rename executable");
 
