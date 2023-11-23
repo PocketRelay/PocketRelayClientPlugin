@@ -12,7 +12,7 @@ use tokio::{
 use super::spawn_task;
 
 /// Server API endpoint to send telemetry data to
-const TELEMETRY_ENDPOINT: &str = "/api/server/telemetry";
+const TELEMETRY_ENDPOINT: &str = "api/server/telemetry";
 
 pub async fn start_server(target: Arc<LookupData>) {
     // Initializing the underlying TCP listener
@@ -39,10 +39,11 @@ pub async fn start_server(target: Arc<LookupData>) {
 
         spawn_task(async move {
             // Create the telemetry URL
-            let url = format!(
-                "{}://{}:{}{}",
-                target.scheme, target.host, target.port, TELEMETRY_ENDPOINT
-            );
+
+            let url = target
+                .url
+                .join(TELEMETRY_ENDPOINT)
+                .expect("Failed to create telemetry endpoint");
 
             let client = Client::new();
 
@@ -52,7 +53,7 @@ pub async fn start_server(target: Arc<LookupData>) {
 
                 let message: TelemetryMessage = decode_message(message);
                 // TODO: Batch these telemetry messages and send them to the server
-                let _ = client.post(&url).json(&message).send().await;
+                let _ = client.post(url.clone()).json(&message).send().await;
             }
         })
         .await;

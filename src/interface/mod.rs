@@ -135,12 +135,16 @@ pub fn init(runtime: tokio::runtime::Handle, config: Option<ClientConfig>) {
 
                         debug!(
                             "Connected to server {} {} version v{}",
-                            value.scheme, value.host, value.version
+                            value.url.scheme(),
+                            value.url.authority(),
+                            value.version
                         );
 
                         let message = format!(
                             "Connected: {} {} version v{}",
-                            value.scheme, value.host, value.version
+                            value.url.scheme(),
+                            value.url.authority(),
+                            value.version
                         );
 
                         c_label.set_text(&message);
