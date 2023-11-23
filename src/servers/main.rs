@@ -1,6 +1,6 @@
 use crate::{
     api::LookupData,
-    constants::{APP_VERSION, MAIN_PORT},
+    constants::{APP_VERSION, HTTP_PORT, MAIN_PORT},
     servers::spawn_task,
 };
 use hyper::header::USER_AGENT;
@@ -47,22 +47,22 @@ pub async fn start_server(target: Arc<LookupData>) {
 }
 
 /// Header for the Pocket Relay connection scheme used by the client
-const HEADER_SCHEME: &str = "X-Pocket-Relay-Scheme";
+const LEGACY_HEADER_SCHEME: &str = "X-Pocket-Relay-Scheme";
 /// Header for the Pocket Relay connection port used by the client
-const HEADER_PORT: &str = "X-Pocket-Relay-Port";
+const LEGACY_HEADER_PORT: &str = "X-Pocket-Relay-Port";
 /// Header for the Pocket Relay connection host used by the client
-const HEADER_HOST: &str = "X-Pocket-Relay-Host";
+const LEGACY_HEADER_HOST: &str = "X-Pocket-Relay-Host";
 /// Header to tell the server to use local HTTP
 const HEADER_LOCAL_HTTP: &str = "X-Pocket-Relay-Local-Http";
 /// Endpoint for upgrading the server connection
-const UPGRADE_ENDPOINT: &str = "/api/server/upgrade";
+const UPGRADE_ENDPOINT: &str = "api/server/upgrade";
 
 async fn handle_blaze(mut client: TcpStream, target: Arc<LookupData>) {
     // Create the upgrade URL
-    let url = format!(
-        "{}://{}:{}{}",
-        target.scheme, target.host, target.port, UPGRADE_ENDPOINT
-    );
+    let url = target
+        .url
+        .join(UPGRADE_ENDPOINT)
+        .expect("Failed to create upgrade endpoint URL");
 
     let user_agent = format!("PocketRelayClient/v{}", APP_VERSION);
 
@@ -75,23 +75,13 @@ async fn handle_blaze(mut client: TcpStream, target: Arc<LookupData>) {
         HeaderValue::from_str(&user_agent).expect("User agent header was invalid"),
     );
 
-    // TODO: Once users have started updating servers these fields can be removed
-
-    // Append the schema header
-    if let Ok(scheme_value) = HeaderValue::from_str(&target.scheme) {
-        headers.insert(HEADER_SCHEME, scheme_value);
-    }
-
-    // Append the port header
-    headers.insert(HEADER_PORT, HeaderValue::from(target.port));
-
-    // Append the host header
-    if let Ok(host_value) = HeaderValue::from_str(&target.host) {
-        headers.insert(HEADER_HOST, host_value);
-    }
-
     // Append use local http header
     headers.insert(HEADER_LOCAL_HTTP, HeaderValue::from_static("true"));
+
+    // Append legacy http details headers
+    headers.insert(LEGACY_HEADER_SCHEME, HeaderValue::from_static("http"));
+    headers.insert(LEGACY_HEADER_PORT, HeaderValue::from(HTTP_PORT));
+    headers.insert(LEGACY_HEADER_HOST, HeaderValue::from_static("127.0.0.1"));
 
     debug!("Connecting pipe to Pocket Relay server");
 
