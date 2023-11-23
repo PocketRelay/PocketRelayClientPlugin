@@ -52,10 +52,18 @@ async fn proxy_http(
         .map(|value| value.as_str())
         .unwrap_or_default();
 
-    let target_url = format!(
-        "{}://{}:{}{}",
-        target.scheme, target.host, target.port, path
-    );
+    // Remove the leading / to make the path relative
+    let path = path.strip_prefix('/').unwrap_or(path);
+
+    let target_url = match target.url.join(path) {
+        Ok(value) => value,
+        Err(_) => {
+            // Failed to create a path
+            let mut error_response = Response::default();
+            *error_response.status_mut() = StatusCode::SERVICE_UNAVAILABLE;
+            return Ok(error_response);
+        }
+    };
 
     let client = Client::new();
     let proxy_response = match client.get(target_url).send().await {
