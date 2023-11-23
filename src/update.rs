@@ -67,6 +67,32 @@ pub async fn download_latest_release(
 
 /// Handles the updating process
 pub async fn update() {
+    let path = current_exe().expect("Unable to locate executable path");
+    let parent = path.parent().expect("Missing exe parent directory");
+
+    let asi_path = parent.join("asi");
+
+    let old_file = asi_path.join("pocket-relay-plugin.asi");
+
+    let tmp_file = asi_path.join("pocket-relay-plugin.asi.tmp-download");
+    let tmp_old = asi_path.join("pocket-relay-plugin.asi.tmp-old");
+
+
+      // Remove the old file if it exists
+    if tmp_old.exists() {
+        tokio::fs::remove_file(&tmp_old)
+            .await
+            .expect("Failed to remove old executable");
+    }
+
+        // Remove temp download file if it exists
+    if tmp_file.exists() {
+        tokio::fs::remove_file(&tmp_file)
+            .await
+            .expect("Failed to remove temp executable");
+    }
+
+
     debug!("Checking for updates");
     let latest_release = match get_latest_release().await {
         Ok(value) => value,
@@ -136,15 +162,8 @@ pub async fn update() {
         return;
     }
 
-    let path = current_exe().expect("Unable to locate executable path");
-    let parent = path.parent().expect("Missing exe parent directory");
 
-    let asi_path = parent.join("asi");
-
-    let old_file = asi_path.join("pocket-relay-plugin.asi");
-    let tmp_file = asi_path.join("pocket-relay-plugin.asi.tmp-download");
-    let tmp_old = asi_path.join("pocket-relay-plugin.asi.tmp-old");
-
+  
     debug!("Downloading release");
 
     if let Err(err) = download_latest_release(asset, &tmp_file).await {
@@ -158,16 +177,12 @@ pub async fn update() {
 
     debug!("Swapping executable files");
 
-    tokio::fs::rename(&old_file, &tmp_old)
+    tokio::fs::rename(&path, &tmp_old)
         .await
         .expect("Failed to rename executable to temp path");
-    tokio::fs::rename(&tmp_file, old_file)
+    tokio::fs::rename(&tmp_file, path)
         .await
         .expect("Failed to rename executable");
-
-    tokio::fs::remove_file(tmp_old)
-        .await
-        .expect("Failed to remove old executable");
 
     simple_message(
         "Update successfull",
