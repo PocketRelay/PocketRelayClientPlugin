@@ -1,6 +1,6 @@
 [package]
 name = "pocket-relay-plugin"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2021"
 description = "ASI plugin for ME3 to allow playing on Pocket Relay servers"
 repository = "https://github.com/PocketRelay/PocketRelayClientPlugin"
@@ -42,3 +42,8 @@ features = [
 [dependencies.tokio]
 version = "1"
 features = ["full"]
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

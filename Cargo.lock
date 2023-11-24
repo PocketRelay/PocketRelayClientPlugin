@@ -996,7 +996,7 @@ dependencies = [
 
 [[package]]
 name = "pocket-relay-plugin"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "env_logger",
  "futures",
