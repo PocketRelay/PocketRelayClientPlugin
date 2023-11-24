@@ -16,24 +16,16 @@ crate-type = ["cdylib"]
 # Shared backing library
 pocket-relay-client-shared = { version = "0.1", path = "../pocket-relay-client-shared" }
 
-
-env_logger = "0.10.0"
-log = "0.4.20"
+env_logger = "0.10"
+log = "0.4"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-
-# Library for obtaining the local IP address of the device
-local-ip-address = "0.5"
-
-thiserror = "1"
-semver = { version = "1.0", features = ["serde"] }
 
 native-windows-gui = { version = "1", features = ["notice"] }
 native-windows-derive = { version = "1" }
 
 futures = "0.3"
-
 
 [dependencies.windows-sys]
 version = "0.48"
@@ -49,25 +41,4 @@ features = [
 # Tokio async runtime
 [dependencies.tokio]
 version = "1"
-features = [
-    "macros",
-    "net",
-    "parking_lot",
-    "rt-multi-thread",
-    "sync",
-    "signal",
-    "fs",
-]
-
-
-# Compile x86
-# cargo build --release --target i686-pc-windows-msvc
-
-# Compile std to reduce size:
-# cargo +nightly build -Z build-std=std,panic_abort --release --target x86_64-pc-windows-msvc
-# [profile.release]
-# opt-level = "z"
-# codegen-units = 1
-# panic = "abort"
-# strip = true
-# lto = true
+features = ["full"]

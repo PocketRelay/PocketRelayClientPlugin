@@ -2,34 +2,7 @@ use std::{env::current_exe, process::exit};
 use crate::constants::{APP_VERSION, GITHUB_REPOSITORY};
 use log::{debug, error};
 use native_windows_gui::{ simple_message, MessageParams, MessageIcons, MessageButtons, message, MessageChoice, error_message};
-use pocket_relay_client_shared::{update::{get_latest_release, download_latest_release},reqwest};
-use semver::Version;
-use serde::Deserialize;
-
-/// Structure for https://api.github.com/repos/PocketRelay/Client/releases/latest
-/// (Only the required parts)
-#[derive(Debug, Deserialize)]
-pub struct GitHubRelease {
-    /// The URL for viewing the release in the browser
-    pub html_url: String,
-    /// The release tag / version
-    pub tag_name: String,
-    /// The name of the release (Usually the same as tag_name)
-    pub name: String,
-    /// The datetime the release was published
-    pub published_at: String,
-
-    pub assets: Vec<GitHubReleaseAsset>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubReleaseAsset {
-    /// The name of the file
-    pub name: String,
-    /// URL for downloading the file
-    pub browser_download_url: String,
-}
-
+use pocket_relay_client_shared::{update::{get_latest_release, download_latest_release}, reqwest, Version};
 
 
 /// Handles the updating process
