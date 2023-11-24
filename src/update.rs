@@ -1,8 +1,8 @@
-use std::{env::current_exe, path::Path, process::exit};
-use crate::constants::APP_VERSION;
+use std::{env::current_exe, process::exit};
+use crate::constants::{APP_VERSION, GITHUB_REPOSITORY};
 use log::{debug, error};
 use native_windows_gui::{ simple_message, MessageParams, MessageIcons, MessageButtons, message, MessageChoice, error_message};
-use reqwest::header::{ACCEPT, USER_AGENT};
+use pocket_relay_client_shared::{update::{get_latest_release, download_latest_release},reqwest};
 use semver::Version;
 use serde::Deserialize;
 
@@ -30,43 +30,10 @@ pub struct GitHubReleaseAsset {
     pub browser_download_url: String,
 }
 
-/// Attempts to obtain the latest release from github
-pub async fn get_latest_release() -> Result<GitHubRelease, reqwest::Error> {
-    let client = reqwest::Client::new();
 
-    client
-        .get("https://api.github.com/repos/PocketRelay/PocketRelayClientPlugin/releases/latest")
-        .header(ACCEPT, "application/json")
-        .header(USER_AGENT, format!("Pocket Relay Client Plugin/{}", APP_VERSION))
-        .send()
-        .await?
-        .json()
-        .await
-}
-
-/// Attempts to download the latest release executable and
-/// write it to the provided path
-pub async fn download_latest_release(
-    asset: &GitHubReleaseAsset,
-    path: &Path,
-) -> Result<(), reqwest::Error> {
-    let client = reqwest::Client::new();
-    let bytes = client
-        .get(&asset.browser_download_url)
-        .header(USER_AGENT, format!("Pocket Relay Client Plugin/{}", APP_VERSION))
-        .send()
-        .await?
-        .bytes()
-        .await?;
-
-    tokio::fs::write(path, bytes)
-        .await
-        .expect("Failed to write file");
-    Ok(())
-}
 
 /// Handles the updating process
-pub async fn update() {
+pub async fn update(http_client: reqwest::Client) {
     let path = current_exe().expect("Unable to locate executable path");
     let parent = path.parent().expect("Missing exe parent directory");
 
@@ -94,7 +61,7 @@ pub async fn update() {
 
 
     debug!("Checking for updates");
-    let latest_release = match get_latest_release().await {
+    let latest_release = match get_latest_release(&http_client, GITHUB_REPOSITORY).await {
         Ok(value) => value,
         Err(err) => {
             error!("Failed to fetch latest release: {}", err);
@@ -161,18 +128,27 @@ pub async fn update() {
     if !matches!(confirm, MessageChoice::Yes) {
         return;
     }
-
-
   
     debug!("Downloading release");
 
-    if let Err(err) = download_latest_release(asset, &tmp_file).await {
-        error_message("Failed to download", &err.to_string());
-        if tmp_file.exists() {
-            let _ = tokio::fs::remove_file(tmp_file).await;
+    match download_latest_release(&http_client, asset).await {
+        Ok(bytes) => {
+            // Save the downloaded file to the tmp path
+            if let Err(err) = tokio::fs::write(&tmp_file, bytes).await {
+                error_message("Failed to save downloaded update", &err.to_string());
+                return;
+            }
         }
+        Err(err) => {
+            error_message("Failed to download", &err.to_string());
 
-        return;
+            // Delete partially downloaded file if present
+            if tmp_file.exists() {
+                let _ = tokio::fs::remove_file(tmp_file).await;
+            }
+
+            return;
+        }
     }
 
     debug!("Swapping executable files");

@@ -123,10 +123,3 @@ impl Pattern {
         VirtualProtect(addr as *const c_void, length, old_protect, &mut old_protect);
     }
 }
-
-pub unsafe fn fill_bytes(mut ptr: *mut u8, bytes: &[u8]) {
-    for byte in bytes {
-        *ptr = *byte;
-        ptr = ptr.add(1);
-    }
-}

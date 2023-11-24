@@ -2,7 +2,7 @@ use log::debug;
 use native_windows_gui::error_message;
 use serde::{Deserialize, Serialize};
 use std::env::current_exe;
-use tokio::fs::{read, write};
+use tokio::fs::write;
 
 use crate::constants::CONFIG_FILE_NAME;
 
@@ -11,7 +11,7 @@ pub struct ClientConfig {
     pub connection_url: String,
 }
 
-pub async fn read_config_file() -> Option<ClientConfig> {
+pub fn read_config_file() -> Option<ClientConfig> {
     let current_path = current_exe().unwrap();
     let parent = current_path
         .parent()
@@ -24,7 +24,7 @@ pub async fn read_config_file() -> Option<ClientConfig> {
 
     debug!("Reading config from: {}", file_path.display());
 
-    let bytes = match read(file_path).await {
+    let bytes = match std::fs::read(file_path) {
         Ok(value) => value,
         Err(err) => {
             error_message("Failed to read client config", &err.to_string());
@@ -43,7 +43,7 @@ pub async fn read_config_file() -> Option<ClientConfig> {
     Some(config)
 }
 
-pub async fn write_config_file(config: &ClientConfig) {
+pub async fn write_config_file(config: ClientConfig) {
     let current_path = current_exe().unwrap();
     let parent = current_path
         .parent()
@@ -51,7 +51,7 @@ pub async fn write_config_file(config: &ClientConfig) {
 
     let file_path = parent.join(CONFIG_FILE_NAME);
 
-    let bytes = match serde_json::to_vec(config) {
+    let bytes = match serde_json::to_vec(&config) {
         Ok(value) => value,
         Err(err) => {
             error_message("Failed to save client config", &err.to_string());

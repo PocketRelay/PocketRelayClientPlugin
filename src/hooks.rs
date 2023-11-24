@@ -1,8 +1,6 @@
-use crate::{
-    pattern::{fill_bytes, Pattern},
-    servers::servers_running_blocking,
-};
+use crate::pattern::Pattern;
 use log::debug;
+use pocket_relay_client_shared::servers::has_server_tasks;
 use std::{
     alloc::{alloc, Layout},
     ffi::{CStr, CString},
@@ -10,14 +8,6 @@ use std::{
 use windows_sys::{
     core::PCSTR,
     Win32::Networking::WinSock::{gethostbyname, HOSTENT},
-};
-
-const VERIFY_CERTIFICATE_PATTERN: Pattern = Pattern {
-    name: "VerifyCertificate",
-    start: 0x401000,
-    end: 0xFFFFFF,
-    mask: "xxxxxxxx",
-    op: &[0xB8, 0xE4, 0xFF, 0xFF, 0xFF, 0x5B, 0x59, 0xC3],
 };
 
 const HOSTNAME_LOOKUP_PATTERN: Pattern = Pattern {
@@ -48,7 +38,6 @@ const HOSTNAME_LOOKUP_PATTERN: Pattern = Pattern {
 
 pub unsafe fn hook() {
     hook_host_lookup();
-    hook_cert_check();
 }
 
 #[no_mangle]
@@ -59,7 +48,7 @@ pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     debug!("Got Host Lookup Request {}", str_name.to_string_lossy());
 
     // Don't redirect to local when custom server is not set
-    let is_official = !servers_running_blocking();
+    let is_official = !has_server_tasks();
 
     // We are only targetting gosredirecotr for host redirects
     // forward null responses aswell
@@ -131,10 +120,4 @@ unsafe fn hook_host_lookup() {
             *ptr = fake_gethostbyname as usize;
         },
     );
-}
-
-unsafe fn hook_cert_check() {
-    Pattern::apply(&VERIFY_CERTIFICATE_PATTERN, 8, |addr| {
-        fill_bytes(addr.add(1), &[0; 4]);
-    });
 }

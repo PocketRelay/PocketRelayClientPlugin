@@ -13,26 +13,27 @@ keywords = ["Hooking"]
 crate-type = ["cdylib"]
 
 [dependencies]
+# Shared backing library
+pocket-relay-client-shared = { version = "0.1", path = "../pocket-relay-client-shared" }
+
+
 env_logger = "0.10.0"
 log = "0.4.20"
-reqwest = { version = "0.11", features = ["json", "gzip"] }
+
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# Blaze SSLv3 async TCPStream implementation
-blaze-ssl-async = "^0.3"
 # Library for obtaining the local IP address of the device
 local-ip-address = "0.5"
 
-tdf = "0.1"
-bytes = "1.4.0"
-
-tokio-util = { version = "0.7", features = ["codec"] }
-futures-util = { version = "0.3", features = ["sink"] }
 thiserror = "1"
 semver = { version = "1.0", features = ["serde"] }
-hyper = { version = "0.14", features = ["server", "http1", "tcp", "runtime"] }
-url = "2.4.1"
+
+native-windows-gui = { version = "1", features = ["notice"] }
+native-windows-derive = { version = "1" }
+
+futures = "0.3"
+
 
 [dependencies.windows-sys]
 version = "0.48"
@@ -57,10 +58,6 @@ features = [
     "signal",
     "fs",
 ]
-
-
-[dependencies.native-windows-gui]
-version = "1.0.13"
 
 
 # Compile x86

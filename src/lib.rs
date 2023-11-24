@@ -1,15 +1,22 @@
 #![allow(clippy::missing_safety_doc)]
 
+use std::path::Path;
+
 use config::read_config_file;
+use log::error;
+use native_windows_gui::error_message;
+use pocket_relay_client_shared::{
+    api::{create_http_client, read_client_identity},
+    reqwest::{Client, Identity},
+};
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
-pub mod api;
 pub mod config;
 pub mod constants;
 pub mod hooks;
-pub mod interface;
 pub mod pattern;
 pub mod servers;
+pub mod ui;
 pub mod update;
 
 #[no_mangle]
@@ -32,24 +39,27 @@ unsafe extern "system" fn DllMain(dll_module: usize, call_reason: u32, _: *mut (
 
             // Spawn UI and prepare task set
             std::thread::spawn(|| {
-                // Create tokio async runtime
-                let runtime = tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Failed building the Runtime");
+                let config = read_config_file();
 
-                runtime.spawn(update::update());
+                // Load the client identity
+                let mut identity: Option<Identity> = None;
+                let identity_file = Path::new("pocket-relay-identity.p12");
+                if identity_file.exists() && identity_file.is_file() {
+                    identity = match read_client_identity(identity_file) {
+                        Ok(value) => Some(value),
+                        Err(err) => {
+                            error!("Failed to set client identity: {}", err);
+                            error_message("Failed to set client identity", &err.to_string());
+                            None
+                        }
+                    };
+                }
 
-                let config = runtime.block_on(read_config_file());
-
-                let handle = runtime.handle().clone();
+                let client: Client =
+                    create_http_client(identity).expect("Failed to create HTTP client");
 
                 // Initialize the UI
-                interface::init(handle, config);
-
-                // Block for CTRL+C to keep servers alive when window closes
-                let shutdown_signal = tokio::signal::ctrl_c();
-                let _ = runtime.block_on(shutdown_signal);
+                ui::init(config, client);
             });
         }
         DLL_PROCESS_DETACH => {
