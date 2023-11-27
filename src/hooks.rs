@@ -1,11 +1,7 @@
 use crate::pattern::Pattern;
 use log::debug;
 use pocket_relay_client_shared::servers::has_server_tasks;
-use std::{
-    alloc::{alloc, Layout},
-    ffi::{CStr, CString},
-    ptr::null_mut,
-};
+use std::{ffi::CStr, ptr::null_mut};
 use windows_sys::{
     core::PCSTR,
     Win32::Networking::WinSock::{gethostbyname, HOSTENT},
@@ -41,6 +37,52 @@ pub unsafe fn hook() {
     hook_host_lookup();
 }
 
+thread_local! {
+    /// Stores the thread local copy of the HOSTENT structure
+    static ADDRESSES: *mut HOSTENT = unsafe { allocate_addresses() };
+}
+
+/// Creates an allocates the HOSTENT structure that is used
+/// for responding to hostname requests.
+///
+/// ## Safety
+///
+/// This function WILL leak memory if used outside of a static context,
+/// it should only be used in the thread local above
+unsafe fn allocate_addresses() -> *mut HOSTENT {
+    let ip_bytes = [127, 0, 0, 1];
+    let host_bytes = b"gosredirector.ea.com\0";
+
+    // Create the address bytes
+    let address_bytes: Box<[i8]> = ip_bytes
+        .iter()
+        .chain(host_bytes.iter())
+        .map(|byte| *byte as i8)
+        .collect();
+
+    // Leak the memory so it won't get dropped automatically
+    let address_bytes = Box::leak(address_bytes);
+
+    // Create an leak an addresses array
+    let addresses: &mut [*mut i8; 2] =
+        Box::leak(Box::new([address_bytes.as_mut_ptr(), null_mut()]));
+
+    // Create and leak the host name bytes
+    let host_name: Box<[u8]> = host_bytes.to_vec().into_boxed_slice();
+    let host_name: &mut [u8] = Box::leak(host_name);
+
+    // Respond with the fake result
+    let result = Box::new(HOSTENT {
+        h_name: host_name.as_mut_ptr(),
+        h_aliases: null_mut(), /* Null aliases */
+        h_addrtype: 2,         /* IPv4 addresses */
+        h_length: 4,           /* 4 bytes for IPv4 */
+        h_addr_list: addresses.as_mut_ptr(),
+    });
+
+    Box::leak(result)
+}
+
 #[no_mangle]
 pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     // Resolve the name
@@ -59,33 +101,8 @@ pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     }
 
     debug!("Responding with localhost redirect");
-    let host = CString::new("gosredirector.ea.com").unwrap();
 
-    // Create the target address
-    let mut address: Vec<i8> = [127, 0, 0, 1]
-        .iter()
-        .chain(host.as_bytes_with_nul())
-        .map(|value| *value as i8)
-        .collect();
-
-    // Addresses
-    let addresses_layout = Layout::array::<*mut i8>(2).unwrap();
-    let addresses: *mut *mut i8 = alloc(addresses_layout) as *mut *mut i8;
-    *addresses = address.as_mut_ptr();
-    *(addresses.add(1)) = std::ptr::null_mut();
-
-    let raw_host = host.into_raw().cast();
-
-    // Respond with the fake result
-    let result = Box::new(HOSTENT {
-        h_name: raw_host,
-        h_aliases: null_mut(), /* Null aliases */
-        h_addrtype: 2,         /* IPv4 addresses */
-        h_length: 4,           /* 4 bytes for IPv4 */
-        h_addr_list: addresses,
-    });
-
-    Box::into_raw(result)
+    ADDRESSES.with(|addr| *addr)
 }
 
 unsafe fn hook_host_lookup() {
