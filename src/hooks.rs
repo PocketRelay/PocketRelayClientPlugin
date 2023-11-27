@@ -33,6 +33,7 @@ const HOSTNAME_LOOKUP_PATTERN: Pattern = Pattern {
     ],
 };
 
+/// Applies the hooks used by the program
 pub unsafe fn hook() {
     hook_host_lookup();
 }
@@ -50,6 +51,8 @@ thread_local! {
 /// This function WILL leak memory if used outside of a static context,
 /// it should only be used in the thread local above
 unsafe fn allocate_addresses() -> *mut HOSTENT {
+    debug!("Allocating HOSTENT structure");
+
     let ip_bytes = [127, 0, 0, 1];
     let host_bytes = b"gosredirector.ea.com\0";
 
@@ -83,28 +86,33 @@ unsafe fn allocate_addresses() -> *mut HOSTENT {
     Box::leak(result)
 }
 
+/// Function used to override the normal functionality for `gethostbyname` and
+/// replace lookups for gosredirector.ea.com with localhost redirects
+///
 #[no_mangle]
 pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     // Resolve the name
     let str_name = CStr::from_ptr(name.cast());
 
-    debug!("Got Host Lookup Request {}", str_name.to_string_lossy());
+    debug!("Got host lookup request: {:?}", str_name);
 
     // Don't redirect to local when custom server is not set
     let is_official = !has_server_tasks();
 
-    // We are only targetting gosredirecotr for host redirects
-    // forward null responses aswell
+    // Forward any non gosredirector.ea.com request onto the original and forward
+    // gos redirector.ea.com requests when we aren't using a custom server
     if str_name.to_bytes() != b"gosredirector.ea.com" || is_official {
         // Obtain the actual host lookup result
         return gethostbyname(name);
     }
 
     debug!("Responding with localhost redirect");
-
     ADDRESSES.with(|addr| *addr)
 }
 
+/// This hook is applied to the `gethostbyname` function within the game in order
+/// to intercept IP address lookups for different domain names, allowing the client
+/// to replace them with references to 127.0.0.1 instead
 unsafe fn hook_host_lookup() {
     Pattern::apply_with_transform(
         &HOSTNAME_LOOKUP_PATTERN,
