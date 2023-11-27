@@ -4,6 +4,7 @@ use pocket_relay_client_shared::servers::has_server_tasks;
 use std::{
     alloc::{alloc, Layout},
     ffi::{CStr, CString},
+    ptr::null_mut,
 };
 use windows_sys::{
     core::PCSTR,
@@ -60,11 +61,6 @@ pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     debug!("Responding with localhost redirect");
     let host = CString::new("gosredirector.ea.com").unwrap();
 
-    // Empty aliases
-    let aliases_layout = Layout::array::<*mut i8>(1).unwrap();
-    let aliases: *mut *mut i8 = alloc(aliases_layout) as *mut *mut i8;
-    *aliases = std::ptr::null_mut();
-
     // Create the target address
     let mut address: Vec<i8> = [127, 0, 0, 1]
         .iter()
@@ -83,9 +79,9 @@ pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     // Respond with the fake result
     let result = Box::new(HOSTENT {
         h_name: raw_host,
-        h_aliases: aliases,
-        h_addrtype: 2, /* IPv4 addresses */
-        h_length: 4,   /* 4 bytes for IPv4 */
+        h_aliases: null_mut(), /* Null aliases */
+        h_addrtype: 2,         /* IPv4 addresses */
+        h_length: 4,           /* 4 bytes for IPv4 */
         h_addr_list: addresses,
     });
 

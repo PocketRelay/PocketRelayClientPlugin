@@ -9,6 +9,7 @@ use pocket_relay_client_shared::{
     api::{create_http_client, read_client_identity},
     reqwest::{Client, Identity},
 };
+use ui::show_confirm;
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
 pub mod config;
@@ -44,7 +45,12 @@ unsafe extern "system" fn DllMain(dll_module: usize, call_reason: u32, _: *mut (
                 // Load the client identity
                 let mut identity: Option<Identity> = None;
                 let identity_file = Path::new("pocket-relay-identity.p12");
-                if identity_file.exists() && identity_file.is_file() {
+                if identity_file.exists() && identity_file.is_file()  
+                 && show_confirm(
+                    "Found client identity",
+                    "Detected client identity pocket-relay-identity.p12, would you like to use this identity?",
+                )
+                {
                     identity = match read_client_identity(identity_file) {
                         Ok(value) => Some(value),
                         Err(err) => {

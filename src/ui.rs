@@ -198,3 +198,14 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
     let shutdown_signal = tokio::signal::ctrl_c();
     let _ = runtime.block_on(shutdown_signal);
 }
+
+pub fn show_confirm(title: &str, text: &str) -> bool {
+    let params = native_windows_gui::MessageParams {
+        title,
+        content: text,
+        buttons: native_windows_gui::MessageButtons::YesNo,
+        icons: native_windows_gui::MessageIcons::Question,
+    };
+
+    native_windows_gui::message(&params) == native_windows_gui::MessageChoice::Yes
+}
