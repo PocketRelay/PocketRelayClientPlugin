@@ -3,7 +3,6 @@
 use std::path::Path;
 
 use config::read_config_file;
-use hudhook::{Hudhook, ImguiRenderLoop, hooks::dx9::ImguiDx9Hooks, eject, HINSTANCE};
 use log::error;
 use native_windows_gui::error_message;
 use pocket_relay_client_shared::{
@@ -11,7 +10,6 @@ use pocket_relay_client_shared::{
     reqwest::{Client, Identity},
 };
 use ui::show_confirm;
-use ui2::GameUi;
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
 pub mod config;
@@ -20,12 +18,11 @@ pub mod hooks;
 pub mod pattern;
 pub mod servers;
 pub mod ui;
-pub mod ui2;
 pub mod update;
 
 #[no_mangle]
 #[allow(non_snake_case, unused_variables)]
-unsafe extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *mut ()) -> bool {
+unsafe extern "system" fn DllMain(dll_module: usize, call_reason: u32, _: *mut ()) -> bool {
     match call_reason {
         DLL_PROCESS_ATTACH => {
             #[cfg(debug_assertions)]
@@ -42,7 +39,7 @@ unsafe extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *m
             unsafe { hooks::hook() };
 
             // Spawn UI and prepare task set
-            std::thread::spawn(move || {
+            std::thread::spawn(|| {
                 let config = read_config_file();
 
                 // Load the client identity
@@ -66,19 +63,9 @@ unsafe extern "system" fn DllMain(dll_module: HINSTANCE, call_reason: u32, _: *m
 
                 let client: Client =
                     create_http_client(identity).expect("Failed to create HTTP client");
-                    
-                    if let Err(e) = Hudhook::builder()
-                    .with(GameUi::new().into_hook::<ImguiDx9Hooks>())
-                    .with_hmodule(dll_module)
-                    .build()
-                    .apply()
-                {
-                    error!("Couldn't apply hooks: {e:?}");
-                    eject();
-                }
 
                 // Initialize the UI
-                // ui::init(config, client);
+                ui::init(config, client);
             });
         }
         DLL_PROCESS_DETACH => {
