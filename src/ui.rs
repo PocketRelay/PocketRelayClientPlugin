@@ -1,16 +1,16 @@
 use crate::{
     config::{write_config_file, ClientConfig},
+    core::{
+        api::{lookup_server, LookupData, LookupError},
+        reqwest::Client,
+        servers::{has_server_tasks, stop_server_tasks},
+    },
     servers::start_all_servers,
     update,
 };
 use futures::FutureExt;
 use ngd::NwgUi;
 use nwg::{error_message, CheckBoxState, NativeUi};
-use pocket_relay_client_shared::{
-    api::{lookup_server, LookupData, LookupError},
-    reqwest::Client,
-    servers::{has_server_tasks, stop_server_tasks},
-};
 use std::cell::RefCell;
 use tokio::task::JoinHandle;
 
