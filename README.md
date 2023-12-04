@@ -60,8 +60,8 @@ If you would like to manually build the dll you can follow the instructions belo
 Clone github repository (Skip this step if you have manually downloaded the sources)
 
 ```sh
-git clone https://github.com/PocketRelay/EmbeddedClient.git
-cd EmbeddedClient
+git clone https://github.com/PocketRelay/PocketRelayClientPlugin.git pocket-relay-client-plugin
+cd pocket-relay-client-plugin
 ```
 
 ### 2. Adding rust target
@@ -87,7 +87,7 @@ cargo build --release
 The dll should now be built you can find it at
 
 ```
-target/i686-pc-windows-msvc/release/binkw32.dll
+target/i686-pc-windows-msvc/release/pocket_relay_plugin.dll
 ```
 
 ## 🧾 License
