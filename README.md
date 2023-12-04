@@ -3,8 +3,7 @@
 ![License](https://img.shields.io/github/license/PocketRelay/EmbeddedClient?style=for-the-badge)
 ![Build](https://img.shields.io/github/actions/workflow/status/PocketRelay/PocketRelayClientPlugin/build.yml?style=for-the-badge)
 
-[Discord Server (discord.gg/yvycWW8RgR)](https://discord.gg/yvycWW8RgR)
-[Website (pocket-relay.pages.dev)](https://pocket-relay.pages.dev/)
+[Discord Server (discord.gg/yvycWW8RgR)](https://discord.gg/yvycWW8RgR) | [Website (pocket-relay.pages.dev)](https://pocket-relay.pages.dev/)
 
 ![Start](assets/start.png)
 
@@ -99,9 +98,9 @@ The dll should now be built you can find it at
 target/i686-pc-windows-msvc/release/pocket_relay_plugin.dll
 ```
 
-## 📌 EA / BioWare Notice
+## 🌐 EA / BioWare Notice
 
-The **Pocket Relay** software in all its forms are in no way or form supported, endorsed, or provided by BioWare or Electronic Arts. 
+The **Pocket Relay** software, in all its forms, is not supported, endorsed, or provided by BioWare or Electronic Arts.
 
 ## 🧾 License
 
