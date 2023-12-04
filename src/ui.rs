@@ -21,6 +21,7 @@ pub const WINDOW_TITLE: &str = concat!("Pocket Relay Client v", env!("CARGO_PKG_
 /// Window icon bytes
 pub const ICON_BYTES: &[u8] = include_bytes!("resources/icon.ico");
 
+/// Native GUI app
 #[derive(NwgUi, Default)]
 pub struct App {
     /// Window Icon
@@ -85,10 +86,12 @@ impl App {
     /// that will wake up the App with `App::handle_connect_notice` to
     /// handle the connection result.
     fn handle_set(&self) {
+        // Abort any existing connection tasks
         if let Some(task) = self.connect_task.take() {
             task.abort();
         }
 
+        // Handle disconnecting
         if has_server_tasks() {
             stop_server_tasks();
             self.connection_label.set_text("Not connected");
@@ -122,42 +125,44 @@ impl App {
             // Flatten join failure errors (Out of our control)
             .and_then(Result::ok);
 
-        let result = match result {
-            Some(value) => value,
-            None => {
+        // Ensure theres actually a result to use
+        let Some(result) = result else { return };
+
+        let lookup = match result {
+            Ok(value) => value,
+            Err(err) => {
+                self.connection_label.set_text("Failed to connect");
+                error_message("Failed to connect", &err.to_string());
                 return;
             }
         };
 
-        match result {
-            Ok(result) => {
-                // Start the servers
-                start_all_servers(self.http_client.clone(), result.url.clone());
+        // Start the servers
+        start_all_servers(self.http_client.clone(), lookup.url.clone());
 
-                let remember = self.remember_checkbox.check_state() == CheckBoxState::Checked;
+        let remember = self.remember_checkbox.check_state() == CheckBoxState::Checked;
 
-                // Save the connection URL
-                if remember {
-                    let connection_url = result.url.to_string();
-                    write_config_file(ClientConfig { connection_url });
-                }
-
-                let text = format!(
-                    "Connected: {} {} version v{}",
-                    result.url.scheme(),
-                    result.url.authority(),
-                    result.version
-                );
-                self.connection_label.set_text(&text)
-            }
-            Err(err) => {
-                self.connection_label.set_text("Failed to connect");
-                error_message("Failed to connect", &err.to_string());
-            }
+        // Save the connection URL
+        if remember {
+            let connection_url = lookup.url.to_string();
+            write_config_file(ClientConfig { connection_url });
         }
+
+        let text = format!(
+            "Connected: {} {} version v{}",
+            lookup.url.scheme(),
+            lookup.url.authority(),
+            lookup.version
+        );
+        self.connection_label.set_text(&text)
     }
 }
 
+/// Initializes the user interface
+///
+/// ## Arguments
+/// * `config` - The client config to use
+/// * `client` - The HTTP client to use
 pub fn init_ui(config: Option<ClientConfig>, client: Client) {
     // Create tokio async runtime
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -202,6 +207,12 @@ pub fn init_ui(config: Option<ClientConfig>, client: Client) {
     let _ = runtime.block_on(shutdown_signal);
 }
 
+/// Shows a confirmation message to the user returning
+/// the choice that the user made.
+///
+/// ## Arguments
+/// * `title` - The title for the dialog
+/// * `text`  - The text for the dialog
 pub fn confirm_message(title: &str, text: &str) -> bool {
     let choice = message(&MessageParams {
         title,
@@ -213,6 +224,11 @@ pub fn confirm_message(title: &str, text: &str) -> bool {
     matches!(choice, MessageChoice::Yes)
 }
 
+/// Shows a info message to the user.
+///
+/// ## Arguments
+/// * `title` - The title for the dialog
+/// * `text`  - The text for the dialog
 pub fn info_message(title: &str, text: &str) {
     message(&MessageParams {
         title,
@@ -222,6 +238,11 @@ pub fn info_message(title: &str, text: &str) {
     });
 }
 
+/// Shows an error message to the user.
+///
+/// ## Arguments
+/// * `title` - The title for the dialog
+/// * `text`  - The text for the dialog
 pub fn error_message(title: &str, text: &str) {
     message(&MessageParams {
         title,

@@ -71,7 +71,10 @@ impl UpdatePaths {
     }
 }
 
-/// Handles the updating process
+/// Handles updating the client plugin the latest version from GitHub
+///
+/// ## Arguments
+/// * `http_client` - The HTTP client to use when requesting and downloading the update
 pub async fn update(http_client: reqwest::Client) {
     let paths = UpdatePaths::default();
 

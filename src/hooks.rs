@@ -132,7 +132,7 @@ pub unsafe fn hook_host_lookup() {
 ///
 /// Reading program memory is *NOT* safe but its required for pattern matching
 ///
-/// # Arguments
+/// ## Arguments
 /// * addr     - The address to start matching from
 /// * mask     - The mask to use when matching opcodes
 /// * op_codes - The op codes to match against
@@ -152,7 +152,7 @@ unsafe fn compare_mask(addr: *const u8, mask: &'static str, op_codes: &'static [
 ///
 /// Reading program memory is *NOT* safe but its required for pattern matching
 ///
-/// # Arguments
+/// ## Arguments
 /// * start_offset - The address to start matching from
 /// * end_offset   - The address to stop matching at
 /// * mask         - The mask to use when matching opcodes
@@ -180,7 +180,7 @@ unsafe fn find_pattern(
 ///
 /// Reading program memory is *NOT* safe but its required for pattern matching
 ///
-/// # Arguments
+/// ## Arguments
 /// * addr - The address to protect
 /// * length - The protected region
 /// * action - The aciton to execute on the memory
