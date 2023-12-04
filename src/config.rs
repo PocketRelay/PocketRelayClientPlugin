@@ -2,7 +2,6 @@ use log::debug;
 use native_windows_gui::error_message;
 use serde::{Deserialize, Serialize};
 use std::env::current_exe;
-use tokio::fs::write;
 
 /// Name of the file that stores saved pocket relay configuration info
 pub const CONFIG_FILE_NAME: &str = "pocket-relay-client.json";
@@ -44,7 +43,7 @@ pub fn read_config_file() -> Option<ClientConfig> {
     Some(config)
 }
 
-pub async fn write_config_file(config: ClientConfig) {
+pub fn write_config_file(config: ClientConfig) {
     let current_path = current_exe().unwrap();
     let parent = current_path
         .parent()
@@ -60,7 +59,7 @@ pub async fn write_config_file(config: ClientConfig) {
         }
     };
 
-    if let Err(err) = write(file_path, bytes).await {
+    if let Err(err) = std::fs::write(file_path, bytes) {
         error_message("Failed to save client config", &err.to_string());
     }
 }

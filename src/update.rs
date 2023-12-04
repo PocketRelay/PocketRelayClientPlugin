@@ -1,8 +1,15 @@
-use std::{env::current_exe, process::exit};
 use crate::APP_VERSION;
 use log::{debug, error};
-use native_windows_gui::{ simple_message, MessageParams, MessageIcons, MessageButtons, message, MessageChoice, error_message};
-use pocket_relay_client_shared::{update::{get_latest_release, download_latest_release}, reqwest, Version};
+use native_windows_gui::{
+    error_message, message, simple_message, MessageButtons, MessageChoice, MessageIcons,
+    MessageParams,
+};
+use pocket_relay_client_shared::{
+    reqwest,
+    update::{download_latest_release, get_latest_release},
+    Version,
+};
+use std::{env::current_exe, process::exit};
 
 /// The GitHub repository to use for releases
 pub const GITHUB_REPOSITORY: &str = "PocketRelay/PocketRelayClientPlugin";
@@ -19,21 +26,19 @@ pub async fn update(http_client: reqwest::Client) {
     let tmp_file = asi_path.join("pocket-relay-plugin.asi.tmp-download");
     let tmp_old = asi_path.join("pocket-relay-plugin.asi.tmp-old");
 
-
-      // Remove the old file if it exists
+    // Remove the old file if it exists
     if tmp_old.exists() {
         tokio::fs::remove_file(&tmp_old)
             .await
             .expect("Failed to remove old executable");
     }
 
-        // Remove temp download file if it exists
+    // Remove temp download file if it exists
     if tmp_file.exists() {
         tokio::fs::remove_file(&tmp_file)
             .await
             .expect("Failed to remove temp executable");
     }
-
 
     debug!("Checking for updates");
     let latest_release = match get_latest_release(&http_client, GITHUB_REPOSITORY).await {
@@ -89,21 +94,20 @@ pub async fn update(http_client: reqwest::Client) {
         "There is a new version of the client available, would you like to update automatically?\n\n\
         Your version: v{}\n\
         Latest Version: v{}\n",
-        current_version, latest_version, 
+        current_version, latest_version,
     );
 
-
-    let confirm = message( &MessageParams {
+    let confirm = message(&MessageParams {
         title: "New version is available",
         content: &msg,
         buttons: MessageButtons::YesNo,
-        icons: MessageIcons::Question
+        icons: MessageIcons::Question,
     });
 
     if !matches!(confirm, MessageChoice::Yes) {
         return;
     }
-  
+
     debug!("Downloading release");
 
     match download_latest_release(&http_client, asset).await {
