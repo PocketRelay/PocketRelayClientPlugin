@@ -90,13 +90,6 @@ The dll should now be built you can find it at
 target/i686-pc-windows-msvc/release/binkw32.dll
 ```
 
-
-## Credits
-
-* WarrantyVoider & Erik-JS - Sourced the patch pattern for VerifyCertificate [Here](https://github.com/Erik-JS/masseffect-binkw32)
-  * This is used as a fallback to patch the certificate verification in the bink bypass hasn't already
-
-
 ## 🧾 License
 
 MIT License
