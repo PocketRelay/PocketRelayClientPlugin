@@ -1,5 +1,3 @@
-#![allow(clippy::missing_safety_doc)]
-
 use config::read_config_file;
 use core::{
     api::{create_http_client, read_client_identity},
@@ -14,7 +12,6 @@ use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS
 
 pub mod config;
 pub mod hooks;
-pub mod pattern;
 pub mod servers;
 pub mod ui;
 pub mod update;
@@ -35,8 +32,8 @@ fn attach() {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    // Apply the hooks
-    unsafe { hooks::hook() };
+    // Apply the host lookup hook
+    unsafe { hooks::hook_host_lookup() };
 
     // Load the config file
     let config = read_config_file();
@@ -54,9 +51,9 @@ fn attach() {
     });
 }
 
-/// Handles the plugin being detatched from the game, this handles
+/// Handles the plugin being deta   ched from the game, this handles
 /// cleaning up any extra allocated resources
-fn detatch() {
+fn detach() {
     // Debug console must be freed on detatch
     #[cfg(debug_assertions)]
     {
@@ -90,12 +87,18 @@ fn load_identity() -> Option<Identity> {
     }
 }
 
+/// Windows DLL entrypoint for the plugin
+///
+/// ## Safety
+///
+/// This is the entrypoint used by windows so I'd say its pretty safe...?
 #[no_mangle]
-#[allow(non_snake_case, unused_variables)]
-unsafe extern "system" fn DllMain(dll_module: usize, call_reason: u32, _: *mut ()) -> bool {
-    match call_reason {
+extern "stdcall" fn DllMain(_hmodule: isize, reason: u32, _: *mut ()) -> bool {
+    match reason {
+        // Handle attaching
         DLL_PROCESS_ATTACH => attach(),
-        DLL_PROCESS_DETACH => detatch(),
+        // Handle detaching
+        DLL_PROCESS_DETACH => detach(),
         _ => {}
     }
 

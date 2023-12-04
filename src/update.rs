@@ -1,13 +1,15 @@
-use crate::APP_VERSION;
+use crate::{
+    core::{
+        reqwest,
+        update::{download_latest_release, get_latest_release},
+        Version,
+    },
+    APP_VERSION,
+};
 use log::{debug, error};
 use native_windows_gui::{
     error_message, message, simple_message, MessageButtons, MessageChoice, MessageIcons,
     MessageParams,
-};
-use pocket_relay_client_shared::{
-    reqwest,
-    update::{download_latest_release, get_latest_release},
-    Version,
 };
 use std::{env::current_exe, process::exit};
 
