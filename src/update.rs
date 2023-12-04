@@ -1,9 +1,11 @@
 use std::{env::current_exe, process::exit};
-use crate::constants::{APP_VERSION, GITHUB_REPOSITORY};
+use crate::APP_VERSION;
 use log::{debug, error};
 use native_windows_gui::{ simple_message, MessageParams, MessageIcons, MessageButtons, message, MessageChoice, error_message};
 use pocket_relay_client_shared::{update::{get_latest_release, download_latest_release}, reqwest, Version};
 
+/// The GitHub repository to use for releases
+pub const GITHUB_REPOSITORY: &str = "PocketRelay/PocketRelayClientPlugin";
 
 /// Handles the updating process
 pub async fn update(http_client: reqwest::Client) {

@@ -1,24 +1,27 @@
 #![allow(clippy::missing_safety_doc)]
 
 use std::path::Path;
-
 use config::read_config_file;
 use log::error;
 use native_windows_gui::error_message;
-use pocket_relay_client_shared::{
+use core::{
     api::{create_http_client, read_client_identity},
     reqwest::{Client, Identity},
 };
 use ui::show_confirm;
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
+pub use pocket_relay_client_shared as core;
+
 pub mod config;
-pub mod constants;
 pub mod hooks;
 pub mod pattern;
 pub mod servers;
 pub mod ui;
 pub mod update;
+
+/// Constant storing the application version
+pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[no_mangle]
 #[allow(non_snake_case, unused_variables)]

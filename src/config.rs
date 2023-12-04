@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::env::current_exe;
 use tokio::fs::write;
 
-use crate::constants::CONFIG_FILE_NAME;
+/// Name of the file that stores saved pocket relay configuration info
+pub const CONFIG_FILE_NAME: &str = "pocket-relay-client.json";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ClientConfig {

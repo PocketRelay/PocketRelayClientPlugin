@@ -1,6 +1,5 @@
 use crate::{
     config::{write_config_file, ClientConfig},
-    constants::{ICON_BYTES, WINDOW_TITLE},
     servers::start_all_servers,
     update,
 };
@@ -18,7 +17,12 @@ use tokio::task::JoinHandle;
 extern crate native_windows_derive as ngd;
 extern crate native_windows_gui as nwg;
 
+/// Size of the created window
 pub const WINDOW_SIZE: (i32, i32) = (500, 135);
+/// Title used for the created window
+pub const WINDOW_TITLE: &str = concat!("Pocket Relay Client v", env!("CARGO_PKG_VERSION"));
+/// Window icon bytes
+pub const ICON_BYTES: &[u8] = include_bytes!("resources/icon.ico");
 
 #[derive(NwgUi, Default)]
 pub struct App {
@@ -117,9 +121,9 @@ impl App {
             .borrow_mut()
             .take()
             // Flatten on the join result
-            .and_then(|task| task.now_or_never())
+            .and_then(FutureExt::now_or_never)
             // Flatten join failure errors (Out of our control)
-            .and_then(|inner| inner.ok());
+            .and_then(Result::ok);
 
         let result = match result {
             Some(value) => value,
