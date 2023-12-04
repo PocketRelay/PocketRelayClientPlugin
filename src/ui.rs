@@ -9,13 +9,10 @@ use crate::{
     update,
 };
 use futures::FutureExt;
-use ngd::NwgUi;
-use nwg::{error_message, CheckBoxState, NativeUi};
+use native_windows_derive::NwgUi;
+use native_windows_gui::*;
 use std::cell::RefCell;
 use tokio::task::JoinHandle;
-
-extern crate native_windows_derive as ngd;
-extern crate native_windows_gui as nwg;
 
 /// Size of the created window
 pub const WINDOW_SIZE: (i32, i32) = (500, 135);
@@ -28,7 +25,7 @@ pub const ICON_BYTES: &[u8] = include_bytes!("resources/icon.ico");
 pub struct App {
     /// Window Icon
     #[nwg_resource(source_bin: Some(ICON_BYTES))]
-    icon: nwg::Icon,
+    icon: Icon,
 
     /// App window
     #[nwg_control(
@@ -38,43 +35,43 @@ pub struct App {
         title: WINDOW_TITLE,
         flags: "WINDOW|VISIBLE|MINIMIZE_BOX"
     )]
-    #[nwg_events(OnWindowClose: [nwg::stop_thread_dispatch()])]
-    window: nwg::Window,
+    #[nwg_events(OnWindowClose: [stop_thread_dispatch()])]
+    window: Window,
 
     /// Grid layout for all the content
     #[nwg_layout(parent: window)]
-    grid: nwg::GridLayout,
+    grid: GridLayout,
 
     /// Label for the connection URL input
     #[nwg_control(text: "Please put the server Connection URL below and press 'Set'")]
     #[nwg_layout_item(layout: grid, col: 0, row: 0, col_span: 2)]
-    target_url_label: nwg::Label,
+    target_url_label: Label,
 
     /// Input for the connection URL
     #[nwg_control(focus: true)]
     #[nwg_layout_item(layout: grid, col: 0, row: 1, col_span: 2)]
-    target_url_input: nwg::TextInput,
+    target_url_input: TextInput,
 
     /// Button for connecting
     #[nwg_control(text: "Set")]
     #[nwg_layout_item(layout: grid, col: 2, row: 1, col_span: 1)]
     #[nwg_events(OnButtonClick: [App::handle_set])]
-    set_button: nwg::Button,
+    set_button: Button,
 
     /// Checkbox for whether to remember the connection URL
     #[nwg_control(text: "Save connection URL")]
     #[nwg_layout_item(layout: grid, col: 0, row: 2, col_span: 3)]
-    remember_checkbox: nwg::CheckBox,
+    remember_checkbox: CheckBox,
 
     /// Connection state label
     #[nwg_control(text: "Not connected")]
     #[nwg_layout_item(layout: grid, col: 0, row: 3, col_span: 3)]
-    connection_label: nwg::Label,
+    connection_label: Label,
 
     /// Notice for connection completion
     #[nwg_control]
     #[nwg_events(OnNotice: [App::handle_connect_notice])]
-    connect_notice: nwg::Notice,
+    connect_notice: Notice,
 
     /// Join handle for the connect task
     connect_task: RefCell<Option<JoinHandle<Result<LookupData, LookupError>>>>,
@@ -161,7 +158,7 @@ impl App {
     }
 }
 
-pub fn init(config: Option<ClientConfig>, client: Client) {
+pub fn init_ui(config: Option<ClientConfig>, client: Client) {
     // Create tokio async runtime
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -174,9 +171,13 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
     // Spawn the updating task
     tokio::spawn(update::update(client.clone()));
 
-    nwg::init().expect("Failed to initialize native UI");
-    nwg::Font::set_global_family("Segoe UI").expect("Failed to set default font");
+    // Initialize nwg
+    init().expect("Failed to initialize native UI");
 
+    // Set the default font family
+    Font::set_global_family("Segoe UI").expect("Failed to set default font");
+
+    // Build the app UI
     let app = App::build_ui(App {
         http_client: client,
         ..Default::default()
@@ -194,20 +195,38 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
             .set_check_state(CheckBoxState::Checked);
     }
 
-    nwg::dispatch_thread_events();
+    dispatch_thread_events();
 
     // Block for CTRL+C to keep servers alive when window closes
     let shutdown_signal = tokio::signal::ctrl_c();
     let _ = runtime.block_on(shutdown_signal);
 }
 
-pub fn show_confirm(title: &str, text: &str) -> bool {
-    let params = native_windows_gui::MessageParams {
+pub fn confirm_message(title: &str, text: &str) -> bool {
+    let choice = message(&MessageParams {
         title,
         content: text,
-        buttons: native_windows_gui::MessageButtons::YesNo,
-        icons: native_windows_gui::MessageIcons::Question,
-    };
+        buttons: MessageButtons::YesNo,
+        icons: MessageIcons::Question,
+    });
 
-    native_windows_gui::message(&params) == native_windows_gui::MessageChoice::Yes
+    matches!(choice, MessageChoice::Yes)
+}
+
+pub fn info_message(title: &str, text: &str) {
+    message(&MessageParams {
+        title,
+        content: text,
+        buttons: MessageButtons::Ok,
+        icons: MessageIcons::Info,
+    });
+}
+
+pub fn error_message(title: &str, text: &str) {
+    message(&MessageParams {
+        title,
+        content: text,
+        buttons: MessageButtons::Ok,
+        icons: MessageIcons::Error,
+    });
 }

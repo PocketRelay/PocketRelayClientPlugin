@@ -1,6 +1,8 @@
-use crate::core::{reqwest, servers::*, Url};
+use crate::{
+    core::{reqwest, servers::*, Url},
+    ui::error_message,
+};
 use log::error;
-use native_windows_gui::error_message;
 use std::sync::Arc;
 
 /// Starts all the servers in their own tasks

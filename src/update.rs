@@ -4,45 +4,84 @@ use crate::{
         update::{download_latest_release, get_latest_release},
         Version,
     },
+    ui::{confirm_message, error_message, info_message},
     APP_VERSION,
 };
 use log::{debug, error};
-use native_windows_gui::{
-    error_message, message, simple_message, MessageButtons, MessageChoice, MessageIcons,
-    MessageParams,
-};
-use std::{env::current_exe, process::exit};
+use std::{env::current_exe, path::PathBuf, process::exit};
 
 /// The GitHub repository to use for releases
 pub const GITHUB_REPOSITORY: &str = "PocketRelay/PocketRelayClientPlugin";
+/// GitHub asset name for the plugin file
+pub const ASSET_NAME: &str = "pocket-relay-plugin.asi";
+
+/// Paths used by the updater
+pub struct UpdatePaths {
+    /// Path to the .asi plugin file
+    pub plugin: PathBuf,
+    /// Temporary path for storing the file while download
+    pub tmp_download: PathBuf,
+    /// Temporary path for moving the old plugin before swapping
+    pub tmp_old: PathBuf,
+}
+
+impl Default for UpdatePaths {
+    fn default() -> Self {
+        // Locate the executable path
+        let path = current_exe().expect("Unable to locate executable path");
+        // Find the parent directory of the executable
+        let parent = path.parent().expect("Missing exe parent directory");
+        // Get the path of the plugin directory
+        let asi_path = parent.join("asi");
+
+        Self {
+            plugin: asi_path.join("pocket-relay-plugin.asi"),
+            tmp_download: asi_path.join("pocket-relay-plugin.asi.tmp-download"),
+            tmp_old: asi_path.join("pocket-relay-plugin.asi.tmp-old"),
+        }
+    }
+}
+
+impl UpdatePaths {
+    // Removes the temporary paths if they exist
+    pub async fn remove_tmp_paths(&self) -> std::io::Result<()> {
+        if self.tmp_old.exists() {
+            tokio::fs::remove_file(&self.tmp_old).await?;
+        }
+
+        if self.tmp_download.exists() {
+            tokio::fs::remove_file(&self.tmp_download).await?;
+        }
+
+        Ok(())
+    }
+
+    /// Moves the `plugin` file to `tmp_old` and moves the downloaded
+    /// file from `tmp_download` to `plugin`
+    pub async fn swap_plugin_files(&self) -> std::io::Result<()> {
+        debug!("Swapping plugin files with update");
+
+        // Move the plugin to the `tmp_old` path
+        tokio::fs::rename(&self.plugin, &self.tmp_old).await?;
+
+        // Move the downloaded plugin to the `plugin` path
+        tokio::fs::rename(&self.tmp_download, &self.plugin).await?;
+
+        Ok(())
+    }
+}
 
 /// Handles the updating process
 pub async fn update(http_client: reqwest::Client) {
-    let path = current_exe().expect("Unable to locate executable path");
-    let parent = path.parent().expect("Missing exe parent directory");
+    let paths = UpdatePaths::default();
 
-    let asi_path = parent.join("asi");
-
-    let old_file = asi_path.join("pocket-relay-plugin.asi");
-
-    let tmp_file = asi_path.join("pocket-relay-plugin.asi.tmp-download");
-    let tmp_old = asi_path.join("pocket-relay-plugin.asi.tmp-old");
-
-    // Remove the old file if it exists
-    if tmp_old.exists() {
-        tokio::fs::remove_file(&tmp_old)
-            .await
-            .expect("Failed to remove old executable");
-    }
-
-    // Remove temp download file if it exists
-    if tmp_file.exists() {
-        tokio::fs::remove_file(&tmp_file)
-            .await
-            .expect("Failed to remove temp executable");
+    // Remove temporary files if they exist
+    if let Err(err) = paths.remove_tmp_paths().await {
+        error!("Failed to remove temporary files: {}", err);
     }
 
     debug!("Checking for updates");
+
     let latest_release = match get_latest_release(&http_client, GITHUB_REPOSITORY).await {
         Ok(value) => value,
         Err(err) => {
@@ -51,12 +90,12 @@ pub async fn update(http_client: reqwest::Client) {
         }
     };
 
-    let latest_tag = latest_release
+    let latest_version = latest_release
         .tag_name
-        .strip_prefix('v')
-        .unwrap_or(&latest_release.tag_name);
+        .trim_start_matches('v')
+        .parse::<Version>();
 
-    let latest_version = match Version::parse(latest_tag) {
+    let latest_version = match latest_version {
         Ok(value) => value,
         Err(err) => {
             error!("Failed to parse version of latest release: {}", err);
@@ -66,7 +105,8 @@ pub async fn update(http_client: reqwest::Client) {
 
     let current_version = Version::parse(APP_VERSION).expect("Failed to parse app version");
 
-    if latest_version <= current_version {
+    // Don't update if we are already on the latest or an unreleased version
+    if current_version >= latest_version {
         if current_version > latest_version {
             debug!("Future release is installed ({})", current_version);
         } else {
@@ -78,18 +118,13 @@ pub async fn update(http_client: reqwest::Client) {
 
     debug!("New version is available ({})", latest_version);
 
-    let asset_name = "pocket-relay-plugin.asi";
-
-    let asset = match latest_release
+    let Some(asset) = latest_release
         .assets
         .iter()
-        .find(|asset| asset.name == asset_name)
-    {
-        Some(value) => value,
-        None => {
-            error!("Server release is missing the desired binary, cannot update");
-            return;
-        }
+        .find(|asset| asset.name == ASSET_NAME)
+    else {
+        error!("Server release is missing the desired binary, cannot update");
+        return;
     };
 
     let msg = format!(
@@ -99,49 +134,38 @@ pub async fn update(http_client: reqwest::Client) {
         current_version, latest_version,
     );
 
-    let confirm = message(&MessageParams {
-        title: "New version is available",
-        content: &msg,
-        buttons: MessageButtons::YesNo,
-        icons: MessageIcons::Question,
-    });
-
-    if !matches!(confirm, MessageChoice::Yes) {
+    if !confirm_message("New version is available", &msg) {
         return;
     }
 
     debug!("Downloading release");
 
-    match download_latest_release(&http_client, asset).await {
-        Ok(bytes) => {
-            // Save the downloaded file to the tmp path
-            if let Err(err) = tokio::fs::write(&tmp_file, bytes).await {
-                error_message("Failed to save downloaded update", &err.to_string());
-                return;
-            }
-        }
+    let bytes = match download_latest_release(&http_client, asset).await {
+        Ok(bytes) => bytes,
         Err(err) => {
             error_message("Failed to download", &err.to_string());
 
             // Delete partially downloaded file if present
-            if tmp_file.exists() {
-                let _ = tokio::fs::remove_file(tmp_file).await;
+            if let Err(err) = paths.remove_tmp_paths().await {
+                error!("Failed to remove temporary files: {}", err);
             }
 
             return;
         }
+    };
+
+    // Save the downloaded file to the tmp path
+    if let Err(err) = tokio::fs::write(&paths.tmp_download, bytes).await {
+        error_message("Failed to save downloaded update", &err.to_string());
+        return;
     }
 
-    debug!("Swapping executable files");
+    // Swap the plugin files with the new version
+    if let Err(err) = paths.swap_plugin_files().await {
+        error!("Failed to swap plugin files: {}", err);
+    }
 
-    tokio::fs::rename(&old_file, &tmp_old)
-        .await
-        .expect("Failed to rename executable to temp path");
-    tokio::fs::rename(&tmp_file, old_file)
-        .await
-        .expect("Failed to rename executable");
-
-    simple_message(
+    info_message(
         "Update successfull",
         "The client has been updated, restart the game now to use the new version",
     );

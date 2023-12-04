@@ -7,7 +7,7 @@ use log::error;
 use native_windows_gui::error_message;
 pub use pocket_relay_client_shared as core;
 use std::path::Path;
-use ui::show_confirm;
+use ui::confirm_message;
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
 pub mod config;
@@ -47,7 +47,7 @@ fn attach() {
     // Start the UI in a new thread
     std::thread::spawn(move || {
         // Initialize the UI
-        ui::init(config, client);
+        ui::init_ui(config, client);
     });
 }
 
@@ -69,7 +69,7 @@ fn load_identity() -> Option<Identity> {
     let identity_file = Path::new("pocket-relay-identity.p12");
     if identity_file.exists()
         && identity_file.is_file()
-        && show_confirm(
+        && confirm_message(
           "Found client identity",
           "Detected client identity pocket-relay-identity.p12, would you like to use this identity?",
         )

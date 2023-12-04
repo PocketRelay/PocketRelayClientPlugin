@@ -1,7 +1,8 @@
 use log::debug;
-use native_windows_gui::error_message;
 use serde::{Deserialize, Serialize};
 use std::env::current_exe;
+
+use crate::ui::error_message;
 
 /// Name of the file that stores saved pocket relay configuration info
 pub const CONFIG_FILE_NAME: &str = "pocket-relay-client.json";
