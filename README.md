@@ -11,6 +11,7 @@
 ## Table of Contents
 
 - [What](#❔-what) What Pocket Relay Plugin client is
+- [Downloads](#📥-downloads) Download links to the client plugin
 - [Whats been improved](#🔮-whats-been-improved) The improvements over the standalone tool
 - [Manually Building](#🚀-manually-building) Instructions for building manually
   - [Requirements](#requirements)
@@ -29,6 +30,15 @@ Rather than providing a seperate tool this version comes in the form of an ASI p
 The guide for using this plugin can be found [Here](https://pocket-relay.pages.dev/docs/client/plugin-client)
 
 > This also works for the official servers because either closing, or just ignoring this popup window will cause the game to just connect to the official servers instead
+
+## 📥 Downloads
+
+Below are some quick download links to download the latest versions, the client plugin contains a built in auto-updater so you don't have to return to this website every time a new release is available.
+
+| Variant | Download Link                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------- |
+| Plugin  | [Download](https://github.com/PocketRelay/PocketRelayClientPlugin/releases/latest/download/pocket-relay-plugin.asi) |
+
 
 ## 🔮 Whats been improved
 - Program runs without admin permissions
