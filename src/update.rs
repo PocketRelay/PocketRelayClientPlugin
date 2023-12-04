@@ -1,3 +1,5 @@
+//! Updater module for providing auto-updating functionality
+
 use crate::{
     core::{
         reqwest,
@@ -131,7 +133,7 @@ pub async fn update(http_client: reqwest::Client) {
     };
 
     let msg = format!(
-        "There is a new version of the client available, would you like to update automatically?\n\n\
+        "There is a new version of the plugin available, would you like to update automatically?\n\n\
         Your version: v{}\n\
         Latest Version: v{}\n",
         current_version, latest_version,

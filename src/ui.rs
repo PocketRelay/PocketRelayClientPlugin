@@ -10,7 +10,7 @@ use crate::{
 };
 use futures::FutureExt;
 use native_windows_derive::NwgUi;
-use native_windows_gui::*;
+use native_windows_gui::{init as nwg_init, *};
 use std::cell::RefCell;
 use tokio::task::JoinHandle;
 
@@ -163,7 +163,7 @@ impl App {
 /// ## Arguments
 /// * `config` - The client config to use
 /// * `client` - The HTTP client to use
-pub fn init_ui(config: Option<ClientConfig>, client: Client) {
+pub fn init(config: Option<ClientConfig>, client: Client) {
     // Create tokio async runtime
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -177,7 +177,7 @@ pub fn init_ui(config: Option<ClientConfig>, client: Client) {
     tokio::spawn(update::update(client.clone()));
 
     // Initialize nwg
-    init().expect("Failed to initialize native UI");
+    nwg_init().expect("Failed to initialize native UI");
 
     // Set the default font family
     Font::set_global_family("Segoe UI").expect("Failed to set default font");

@@ -1,10 +1,12 @@
+#![warn(unused_crate_dependencies)]
+
 use config::read_config_file;
 use core::{
     api::{create_http_client, read_client_identity},
     reqwest::{Client, Identity},
 };
 use log::error;
-pub use pocket_relay_client_shared as core;
+use pocket_relay_client_shared as core;
 use std::path::Path;
 use ui::{confirm_message, error_message};
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
@@ -46,7 +48,7 @@ fn attach() {
     // Start the UI in a new thread
     std::thread::spawn(move || {
         // Initialize the UI
-        ui::init_ui(config, client);
+        ui::init(config, client);
     });
 }
 
