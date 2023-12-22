@@ -1,6 +1,6 @@
 [package]
 name = "pocket-relay-plugin"
-version = "0.0.4"
+version = "0.0.5"
 edition = "2021"
 description = "ASI plugin for ME3 to allow playing on Pocket Relay servers"
 repository = "https://github.com/PocketRelay/PocketRelayClientPlugin"
@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Shared backing library
-pocket-relay-client-shared = { version = "0.1" }
+pocket-relay-client-shared = { version = "0.2", path = "../pocket-relay-client-shared" }
 
 # Logging
 env_logger = "0.10"
