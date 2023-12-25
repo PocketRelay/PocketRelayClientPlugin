@@ -178,7 +178,9 @@ unsafe fn find_pattern(
 ///
 /// ## Safety
 ///
-/// Reading program memory is *NOT* safe but its required for pattern matching
+/// This function aquires the proper write permissions over
+/// `addr` for the required `length` but it is unsound if
+/// memory past `length` is accessed
 ///
 /// ## Arguments
 /// * addr - The address to protect
