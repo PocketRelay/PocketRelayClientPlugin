@@ -178,7 +178,7 @@ unsafe fn find_pattern(
 ///
 /// ## Safety
 ///
-/// This function aquires the proper write permissions over
+/// This function acquires the proper write permissions over
 /// `addr` for the required `length` but it is unsound if
 /// memory past `length` is accessed
 ///
