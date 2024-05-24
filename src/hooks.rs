@@ -113,8 +113,6 @@ pub unsafe fn hook_host_lookup() {
     // jmp dword ptr ds:[????]
     let address = *(jmp_address.add(2 /* Skip ptr jmp opcode */) as *const usize);
 
-    // Invalid call at -> 019A4DF1
-
     // Final pointer from the resolved address
     let addr = address as *const u8;
 
