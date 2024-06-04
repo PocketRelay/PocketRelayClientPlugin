@@ -171,7 +171,7 @@ pub async fn update(http_client: reqwest::Client) {
     }
 
     info_message(
-        "Update successfull",
+        "Update successful",
         "The client has been updated, restart the game now to use the new version",
     );
 

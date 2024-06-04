@@ -52,10 +52,10 @@ fn attach() {
     });
 }
 
-/// Handles the plugin being deta   ched from the game, this handles
+/// Handles the plugin being detached from the game, this handles
 /// cleaning up any extra allocated resources
 fn detach() {
-    // Debug console must be freed on detatch
+    // Debug console must be freed on detach
     #[cfg(debug_assertions)]
     {
         unsafe {

@@ -62,7 +62,7 @@ static mut HOST_ENT: HOSTENT = unsafe {
 ///
 /// ## Safety
 ///
-/// This function safely passes memory to the os implemention of this function
+/// This function safely passes memory to the os implementation of this function
 /// only using a different pointer when required so it is considered safe
 #[no_mangle]
 pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
@@ -168,7 +168,7 @@ unsafe fn find_pattern(
     (start_offset..=end_offset)
         // Cast the address to a pointer type
         .map(|addr| addr as *const u8)
-        // Compre the mask at the provided address
+        // Compare the mask at the provided address
         .find(|addr| compare_mask(*addr, mask, op_codes))
 }
 
@@ -186,7 +186,7 @@ unsafe fn find_pattern(
 /// ## Arguments
 /// * addr - The address to protect
 /// * length - The protected region
-/// * action - The aciton to execute on the memory
+/// * action - The action to execute on the memory
 #[inline]
 unsafe fn use_memory<F, P>(addr: *const P, length: usize, action: F)
 where
