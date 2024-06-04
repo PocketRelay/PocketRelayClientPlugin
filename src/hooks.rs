@@ -1,6 +1,9 @@
 use crate::core::servers::has_server_tasks;
 use log::{debug, error, warn};
-use std::{ffi::CStr, ptr::null_mut};
+use std::{
+    ffi::CStr,
+    ptr::{addr_of_mut, null_mut},
+};
 use windows_sys::{
     core::PCSTR,
     Win32::{
@@ -72,7 +75,7 @@ pub unsafe extern "system" fn fake_gethostbyname(name: PCSTR) -> *mut HOSTENT {
     // there is running server tasks
     if str_name.to_bytes() == b"gosredirector.ea.com" && has_server_tasks() {
         debug!("Responding with localhost redirect");
-        return &mut HOST_ENT;
+        return addr_of_mut!(HOST_ENT);
     }
 
     // Use the actual function
