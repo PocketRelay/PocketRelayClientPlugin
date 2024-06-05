@@ -8,10 +8,7 @@ use windows_sys::{
     core::PCSTR,
     Win32::{
         Foundation::{GetLastError, FALSE},
-        Networking::{
-            WinInet::{InternetGetConnectedState, INTERNET_CONNECTION, INTERNET_CONNECTION_LAN},
-            WinSock::{gethostbyname, HOSTENT},
-        },
+        Networking::WinSock::{gethostbyname, HOSTENT},
         System::Memory::{VirtualProtect, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
     },
 };
@@ -127,46 +124,6 @@ pub unsafe fn hook_host_lookup() {
         let ptr: *mut usize = addr as *mut usize;
         *ptr = fake_gethostbyname as usize;
     });
-}
-
-type InternetGetConnectedStateFn =
-    unsafe extern "system" fn(lpdwFlags: *mut INTERNET_CONNECTION, dwReserved: u32) -> i32;
-
-/// Applies a hook that tricks the program into thinking it always has
-/// an active internet connection. (Allows playing offline)
-///
-/// ## Safety
-///
-/// This function replaces a memory address redirecting to a matching function.
-pub unsafe fn hook_internet_connected() {
-    // Get a pointer to the original function
-    let fn_ptr: *const InternetGetConnectedStateFn = InternetGetConnectedState as *const _;
-
-    use_memory(
-        fn_ptr,
-        std::mem::size_of::<*const InternetGetConnectedStateFn>(),
-        |mem| {
-            // Replace the function with the new one
-            *mem = fake_internet_get_state;
-        },
-    )
-}
-
-/// Offline check that always returns TRUE
-///
-/// ## Safety
-///
-/// Doesn't perform any unsafe actions, just must be marked as unsafe to
-/// be used as an extern fn
-#[no_mangle]
-pub unsafe extern "system" fn fake_internet_get_state(
-    lpdw_flags: *mut INTERNET_CONNECTION,
-    _dw_reserved: u32,
-) -> i32 {
-    if !lpdw_flags.is_null() {
-        *lpdw_flags = INTERNET_CONNECTION_LAN;
-    }
-    1
 }
 
 /// Compares the opcodes after the provided address using the provided
