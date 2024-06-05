@@ -1,6 +1,6 @@
 # Pocket Relay Client Plugin
 
-![License](https://img.shields.io/github/license/PocketRelay/EmbeddedClient?style=for-the-badge)
+![License](https://img.shields.io/github/license/PocketRelay/PocketRelayClientPlugin?style=for-the-badge)
 ![Build](https://img.shields.io/github/actions/workflow/status/PocketRelay/PocketRelayClientPlugin/build.yml?style=for-the-badge)
 
 [Discord Server (discord.gg/yvycWW8RgR)](https://discord.gg/yvycWW8RgR) | [Website (pocket-relay.pages.dev)](https://pocket-relay.pages.dev/)
@@ -23,7 +23,7 @@
 ## ❔ What
 
 This is a new iteration of the **PocketRelay** client to allow you to connect to **Pocket Relay** servers (Mass Effect 3 private servers). 
-Rather than providing a seperate tool this version comes in the form of an ASI plugin that can be added to your games plugin folder
+Rather than providing a separate tool this version comes in the form of an ASI plugin that can be added to your games plugin folder
 (Requires patching the game with ME3 Mod Manager or similar)
 
 The guide for using this plugin can be found [Here](https://pocket-relay.pages.dev/docs/client/plugin-client)
@@ -47,12 +47,12 @@ Below are some quick download links to download the latest versions, the client 
   - Users no longer have to keep around a extra client utility, they just have to patch once then if they want to connect to a server they can enter its address and they're done
 - Supports disconnecting
   - You can disconnect from a private server while the game is running and connect back to the official servers
-  - There are a few bugs with this process so its recommened that you restart your game if you want to switch back to the official server
+  - There are a few bugs with this process so its recommended that you restart your game if you want to switch back to the official server
   - (Note: If you've connected back to the official servers you will have to restart your game before you can re-connect to private servers)
 - Can close the window 
   - The connection URL window can be closed after you've connected to the server and doesn't need to be kept open like the previous client tool
 - Built into a plugin
-  - No need to launch a seperate program, the tool will launch when you launch Mass Effect 3
+  - No need to launch a separate program, the tool will launch when you launch Mass Effect 3
 
 ## 🚀 Manually Building
 
@@ -106,7 +106,7 @@ The **Pocket Relay** software, in all its forms, is not supported, endorsed, or 
 
 MIT License
 
-Copyright (c) 2023 Jacobtread
+Copyright (c) 2023 - 2024 Jacobtread
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
