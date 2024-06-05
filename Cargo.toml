@@ -43,6 +43,8 @@ features = [
     "Win32_System_Console",
     # Required for HOSTENT structure and gethostbyname function
     "Win32_Networking_WinSock",
+    # Required to do "always online" behavior
+    "Win32_Networking_WinInet",
 ]
 
 # Tokio async runtime
