@@ -43,6 +43,8 @@ features = [
     "Win32_System_Console",
     # Required for HOSTENT structure and gethostbyname function
     "Win32_Networking_WinSock",
+    # APIs to suspend threads
+    "Win32_System_Diagnostics_ToolHelp",
 ]
 
 # Tokio async runtime

@@ -7,9 +7,21 @@ use core::{
 };
 use log::error;
 use pocket_relay_client_shared as core;
-use std::path::Path;
+use std::{path::Path, sync::Mutex};
 use ui::{confirm_message, error_message};
-use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
+use windows_sys::Win32::{
+    Foundation::{CloseHandle, INVALID_HANDLE_VALUE},
+    System::{
+        Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
+        },
+        SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH},
+        Threading::{
+            GetCurrentProcessId, GetCurrentThreadId, OpenThread, ResumeThread, SuspendThread,
+            THREAD_QUERY_INFORMATION, THREAD_SUSPEND_RESUME,
+        },
+    },
+};
 
 pub mod config;
 pub mod hooks;
@@ -22,6 +34,9 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Handles the plugin being attached to the game
 fn attach() {
+    // Suspend all game threads so the user has a chance to connect to a server
+    unsafe { suspend_all_threads() };
+
     // Debug allocates a console window to display output
     #[cfg(debug_assertions)]
     {
@@ -45,8 +60,7 @@ fn attach() {
     // Create the internal HTTP client
     let client: Client = create_http_client(identity).expect("Failed to create HTTP client");
 
-    // Start the UI in a new thread
-    std::thread::spawn(move || {
+    std::thread::spawn(|| {
         // Initialize the UI
         ui::init(config, client);
     });
@@ -60,6 +74,85 @@ fn detach() {
     {
         unsafe {
             windows_sys::Win32::System::Console::FreeConsole();
+        }
+    }
+}
+
+// Threads that were suspended
+static SUSPENDED_THREADS: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+
+unsafe fn suspend_all_threads() {
+    let current_thread_id = GetCurrentThreadId();
+    let target_process_id = GetCurrentProcessId();
+
+    let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if snapshot == INVALID_HANDLE_VALUE {
+        return;
+    }
+
+    let mut thread_entry: THREADENTRY32 = unsafe { std::mem::zeroed() };
+    thread_entry.dwSize = std::mem::size_of::<THREADENTRY32>() as u32;
+
+    // Read the first thread entry
+    if Thread32First(snapshot, &mut thread_entry) == 0 {
+        return;
+    }
+
+    let mut suspended_threads = Vec::new();
+
+    loop {
+        // Suspend threads that aren't the current thread
+        if thread_entry.th32OwnerProcessID == target_process_id
+            && thread_entry.th32ThreadID != current_thread_id
+        {
+            let thread_handle = unsafe {
+                OpenThread(
+                    THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
+                    0,
+                    thread_entry.th32ThreadID,
+                )
+            };
+
+            if thread_handle != 0 {
+                SuspendThread(thread_handle);
+                CloseHandle(thread_handle);
+
+                suspended_threads.push(thread_entry.th32ThreadID);
+            }
+        }
+
+        // Read the next thread
+        if Thread32Next(snapshot, &mut thread_entry) == 0 {
+            break;
+        }
+    }
+
+    CloseHandle(snapshot);
+
+    // Store the threads we suspended
+    if let Ok(mut value) = SUSPENDED_THREADS.lock() {
+        *value = suspended_threads;
+    }
+}
+
+unsafe fn resume_all_threads() {
+    // Get the suspended threads
+    let suspended_threads = match SUSPENDED_THREADS.lock() {
+        Ok(mut value) => value.split_off(0),
+        Err(_) => return,
+    };
+
+    // Resume the threads that were suspended
+    for thread_id in suspended_threads {
+        let thread_handle = OpenThread(
+            THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
+            0,
+            thread_id,
+        );
+
+        if thread_handle != 0 {
+            ResumeThread(thread_handle);
+            CloseHandle(thread_handle);
         }
     }
 }

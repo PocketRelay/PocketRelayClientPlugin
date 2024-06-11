@@ -5,6 +5,7 @@ use crate::{
         reqwest::Client,
         servers::{has_server_tasks, stop_server_tasks},
     },
+    resume_all_threads,
     servers::start_all_servers,
     update,
 };
@@ -16,7 +17,7 @@ use std::{cell::RefCell, sync::Arc};
 use tokio::task::JoinHandle;
 
 /// Size of the created window
-pub const WINDOW_SIZE: (i32, i32) = (500, 135);
+pub const WINDOW_SIZE: (i32, i32) = (500, 225);
 /// Title used for the created window
 pub const WINDOW_TITLE: &str = concat!("Pocket Relay Client v", env!("CARGO_PKG_VERSION"));
 /// Window icon bytes
@@ -37,7 +38,7 @@ pub struct App {
         title: WINDOW_TITLE,
         flags: "WINDOW|VISIBLE|MINIMIZE_BOX"
     )]
-    #[nwg_events(OnWindowClose: [stop_thread_dispatch()])]
+    #[nwg_events(OnWindowClose: [stop_thread_dispatch()], OnKeyEnter: [App::handle_set])]
     window: Window,
 
     /// Grid layout for all the content
@@ -55,7 +56,7 @@ pub struct App {
     target_url_input: TextInput,
 
     /// Button for connecting
-    #[nwg_control(text: "Set")]
+    #[nwg_control(text: "Connect")]
     #[nwg_layout_item(layout: grid, col: 2, row: 1, col_span: 1)]
     #[nwg_events(OnButtonClick: [App::handle_set])]
     set_button: Button,
@@ -69,6 +70,11 @@ pub struct App {
     #[nwg_control(text: "Not connected")]
     #[nwg_layout_item(layout: grid, col: 0, row: 3, col_span: 3)]
     connection_label: Label,
+
+    /// Label about connecting
+    #[nwg_control(text: "Your game will start after you connect. If you don't want to connect to\n a Pocket Relay server close this window and you will connect to the\n official servers")]
+    #[nwg_layout_item(layout: grid, col: 0, row: 4, col_span: 3, row_span: 3)]
+    connect_label: Label,
 
     /// Notice for connection completion
     #[nwg_control]
@@ -161,7 +167,12 @@ impl App {
             lookup.url.authority(),
             lookup.version
         );
-        self.connection_label.set_text(&text)
+        self.connection_label.set_text(&text);
+
+        // Resume game threads
+        unsafe {
+            resume_all_threads();
+        }
     }
 }
 
@@ -209,7 +220,11 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
 
     dispatch_thread_events();
 
-    // Block for CTRL+C to keep servers alive when window closes
+    // Resume the game threads if we close the UI
+    unsafe {
+        resume_all_threads();
+    }
+
     let shutdown_signal = tokio::signal::ctrl_c();
     let _ = runtime.block_on(shutdown_signal);
 }
