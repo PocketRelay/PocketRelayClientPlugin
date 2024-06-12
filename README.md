@@ -98,6 +98,11 @@ The dll should now be built you can find it at
 target/i686-pc-windows-msvc/release/pocket_relay_plugin.dll
 ```
 
+
+> After v1.75.0 of Rust they dropped support for older versions of windows (<10) completely which
+> breaks this plugin under wine (As last checked at 12/06/2024) to get around this I have locked this
+> project to v1.75.0 of the compiler to support running under wine
+
 ## 🌐 EA / BioWare Notice
 
 The **Pocket Relay** software, in all its forms, is not supported, endorsed, or provided by BioWare or Electronic Arts.

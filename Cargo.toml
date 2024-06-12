@@ -1,6 +1,6 @@
 [package]
 name = "pocket-relay-plugin"
-version = "0.0.6"
+version = "0.0.6-beta"
 edition = "2021"
 description = "ASI plugin for ME3 to allow playing on Pocket Relay servers"
 repository = "https://github.com/PocketRelay/PocketRelayClientPlugin"
@@ -43,6 +43,8 @@ features = [
     "Win32_System_Console",
     # Required for HOSTENT structure and gethostbyname function
     "Win32_Networking_WinSock",
+    # APIs to suspend threads
+    "Win32_System_Diagnostics_ToolHelp",
 ]
 
 # Tokio async runtime

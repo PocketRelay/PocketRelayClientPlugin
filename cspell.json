@@ -12,6 +12,7 @@
         "redirector",
         "reqwest",
         "Segoe",
-        "stdcall"
+        "stdcall",
+        "THREADENTRY"
     ]
 }
