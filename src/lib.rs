@@ -24,6 +24,7 @@ use windows_sys::Win32::{
 };
 
 pub mod config;
+pub mod game;
 pub mod hooks;
 pub mod servers;
 pub mod ui;
@@ -48,8 +49,8 @@ fn attach() {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
-    // Apply the host lookup hook
-    unsafe { hooks::hook_host_lookup() };
+    // Apply hooks
+    unsafe { hooks::apply_hooks() };
 
     // Load the config file
     let config = read_config_file();
