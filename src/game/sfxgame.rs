@@ -23,9 +23,11 @@ macro_rules! define_method {
 
             // Create the function object pointer if not initialized
             if FN_PTR.is_null() {
-                let missing_class_error = format!("Missing {} ({}) function object", stringify!($func_name), stringify!($fn_index));
-
-                FN_PTR = get_function_object($fn_index).expect(&missing_class_error);
+                if let Some(fn_ptr) = get_function_object($fn_index) {
+                    FN_PTR = fn_ptr;
+                } else {
+                    panic!("Missing {} ({}) function object", stringify!($func_name), stringify!($fn_index))
+                }
             }
 
             // Create the function params
