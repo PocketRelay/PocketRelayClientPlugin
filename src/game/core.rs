@@ -26,6 +26,14 @@ pub fn get_function_object(index: usize) -> Option<*mut UFunction> {
     Some(fn_ptr)
 }
 
+pub trait AsObjectRef {
+    fn as_object_ref(&self) -> &UObject;
+}
+
+pub trait GetObjectName {
+    fn get_object_name(&self) -> &CStr;
+}
+
 /// Array type
 #[repr(C)]
 pub struct TArray<T> {
@@ -194,8 +202,9 @@ impl<T> From<Vec<T>> for TArray<T> {
     }
 }
 
+/// Unreal engine UTF-16 string based on a [TArray] of [u16]
 #[repr(C)]
-pub struct FString(TArray<i16>);
+pub struct FString(TArray<u16>);
 
 impl Default for FString {
     fn default() -> Self {
@@ -210,10 +219,7 @@ impl FString {
             value.push('\0')
         }
 
-        let value = value
-            .encode_utf16()
-            .map(|value| value as i16)
-            .collect::<Vec<_>>();
+        let value = value.encode_utf16().collect::<Vec<_>>();
         FString(TArray::from(value))
     }
 
@@ -223,10 +229,7 @@ impl FString {
             panic!("FString::from_str missing null terminator \"{value}\"");
         }
 
-        let value = value
-            .encode_utf16()
-            .map(|value| value as i16)
-            .collect::<Vec<_>>();
+        let value = value.encode_utf16().collect::<Vec<_>>();
         FString(TArray::from(value))
     }
 }
@@ -250,26 +253,26 @@ impl Debug for FString {
 
 impl Display for FString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let out = decode_utf16(self.0.iter().map(|value| *value as u16))
-            .try_fold(String::new(), |mut accu, value| {
-                if let Ok(value) = value {
-                    accu.push(value);
-                    Some(accu)
-                } else {
-                    None
-                }
-            })
-            .unwrap();
+        let mut out = String::with_capacity(self.0.len());
+        let mut iter = decode_utf16(self.0.iter().copied());
+
+        // Ignore decoding errors
+        while let Some(Ok(value)) = iter.next() {
+            // Stop at null terminators
+            if value == '\0' {
+                break;
+            }
+
+            out.push(value);
+        }
+
         f.write_str(&out)
     }
 }
 
-#[repr(C)]
-pub struct UObjectVTable(c_void);
-
 #[repr(C, packed(4))]
 pub struct UObject {
-    pub vtable_: *const UObjectVTable,
+    pub vtable_: *const c_void,
     pub object_internal_integer: c_int,
     pub object_flags: FQWord,
     pub hash_next: FPointer,
@@ -285,21 +288,34 @@ pub struct UObject {
 }
 
 impl UObject {
+    /// Cast the object to another type
     pub fn cast<T>(&self) -> *const T {
         self as *const UObject as *const T
     }
 
-    /// Collects the full name of the object
+    /// Collects the full name of the object include the
+    /// name of all outer classes
     pub fn get_full_name(&self) -> String {
         match unsafe { (self.class.as_ref(), self.outer.as_ref()) } {
             (Some(class), Some(outer)) => {
-                let class_name = class.get_name().to_str().expect("Class name invalid utf8");
-                let outer_name = outer.get_name().to_str().expect("Class name invalid utf8");
-                let this_name = self.get_name().to_str().expect("Class name invalid utf8");
+                let class_name = class
+                    .get_object_name()
+                    .to_str()
+                    .expect("Class name invalid utf8");
+                let outer_name = outer
+                    .get_object_name()
+                    .to_str()
+                    .expect("Class name invalid utf8");
+                let this_name = self
+                    .get_object_name()
+                    .to_str()
+                    .expect("Class name invalid utf8");
 
                 if let Some(outer) = unsafe { outer.outer.as_ref() } {
-                    let outer_outer_name =
-                        outer.get_name().to_str().expect("Class name invalid utf8");
+                    let outer_outer_name = outer
+                        .get_object_name()
+                        .to_str()
+                        .expect("Class name invalid utf8");
 
                     format!(
                         "{} {}.{}.{}",
@@ -312,8 +328,11 @@ impl UObject {
             _ => "(null)".to_string(),
         }
     }
+}
 
-    pub fn get_name(&self) -> &CStr {
+impl GetObjectName for UObject {
+    #[inline]
+    fn get_object_name(&self) -> &CStr {
         self.name.get_name()
     }
 }
@@ -371,12 +390,16 @@ pub struct UClass {
     pub unknown_data00: [c_uchar; 188usize],
 }
 
-impl UClass {
-    pub fn get_name(&self) -> &CStr {
-        self._base.get_name()
+impl GetObjectName for UClass {
+    #[inline]
+    fn get_object_name(&self) -> &CStr {
+        self._base.get_object_name()
     }
+}
 
-    pub fn as_object_ref(&self) -> &UObject {
+impl AsObjectRef for UClass {
+    #[inline]
+    fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
     }
 }
@@ -387,12 +410,16 @@ pub struct UState {
     pub unknown_data00: [c_uchar; 36usize],
 }
 
-impl UState {
-    pub fn get_name(&self) -> &CStr {
-        self._base.get_name()
+impl GetObjectName for UState {
+    #[inline]
+    fn get_object_name(&self) -> &CStr {
+        self._base.get_object_name()
     }
+}
 
-    pub fn as_object_ref(&self) -> &UObject {
+impl AsObjectRef for UState {
+    #[inline]
+    fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
     }
 }
@@ -403,12 +430,16 @@ pub struct UStruct {
     pub unknown_data00: [c_uchar; 64usize],
 }
 
-impl UStruct {
-    pub fn get_name(&self) -> &CStr {
-        self._base.get_name()
+impl GetObjectName for UStruct {
+    #[inline]
+    fn get_object_name(&self) -> &CStr {
+        self._base.get_object_name()
     }
+}
 
-    pub fn as_object_ref(&self) -> &UObject {
+impl AsObjectRef for UStruct {
+    #[inline]
+    fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
     }
 }
@@ -420,12 +451,16 @@ pub struct UField {
     pub next: *mut UField,
 }
 
-impl UField {
-    pub fn get_name(&self) -> &CStr {
-        self._base.get_name()
+impl GetObjectName for UField {
+    #[inline]
+    fn get_object_name(&self) -> &CStr {
+        self._base.get_object_name()
     }
+}
 
-    pub fn as_object_ref(&self) -> &UObject {
+impl AsObjectRef for UField {
+    #[inline]
+    fn as_object_ref(&self) -> &UObject {
         &self._base
     }
 }
@@ -439,17 +474,21 @@ pub struct UFunction {
     pub unknown_data00: [c_uchar; 8usize],
 }
 
-impl UFunction {
-    pub fn get_name(&self) -> &CStr {
-        self._base.get_name()
+impl GetObjectName for UFunction {
+    #[inline]
+    fn get_object_name(&self) -> &CStr {
+        self._base.get_object_name()
     }
+}
 
-    pub fn as_object_ref(&self) -> &UObject {
+impl AsObjectRef for UFunction {
+    #[inline]
+    fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
     }
 }
 
 #[repr(C)]
 pub struct FScriptDelegate {
-    pub unknown_data_00: [::std::os::raw::c_uchar; 12usize],
+    pub unknown_data_00: [c_uchar; 12usize],
 }

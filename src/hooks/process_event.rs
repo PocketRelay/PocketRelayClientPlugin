@@ -6,7 +6,7 @@ use windows_sys::Win32::System::Memory::{
 };
 
 use crate::game::{
-    core::{FString, UFunction, UObject},
+    core::{AsObjectRef, FString, UFunction, UObject},
     sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
 };
 
