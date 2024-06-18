@@ -132,7 +132,6 @@ pub unsafe extern "thiscall" fn fake_process_event(
     // Hook existing display notification event code
     if name.contains("Function SFXGame.SFXOnlineComponentUI.OnDisplayNotification") {
         /// Structure of the parameters
-        #[derive(Debug, Clone, Copy)]
         #[repr(C)]
         #[allow(non_camel_case_types)]
         struct Params {

@@ -13,7 +13,6 @@ macro_rules! define_method {
             $( $arg_name: $arg_type ),*
         ) {
             /// Generated structure to hold the function params
-            #[derive(Debug, Clone, Copy)]
             #[repr(C)]
             #[allow(non_camel_case_types)]
             struct Params {
@@ -44,7 +43,6 @@ macro_rules! define_method {
     };
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C, packed(4))]
 pub struct USFXOnlineComponentUI {
     // Base C++ class for this class
@@ -64,7 +62,6 @@ impl USFXOnlineComponentUI {
     define_method!(event_on_display_notification, 78599, info: FSFXOnlineMOTDInfo);
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C, packed(4))]
 pub struct FSFXOnlineMOTDInfo {
     pub message: FString,

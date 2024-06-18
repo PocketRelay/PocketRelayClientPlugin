@@ -28,7 +28,6 @@ pub fn get_function_object(index: usize) -> Option<*mut UFunction> {
 
 /// Array type
 #[repr(C)]
-#[derive(Copy)]
 pub struct TArray<T> {
     /// Pointer to the data within the array
     data: *mut T,
@@ -196,7 +195,6 @@ impl<T> From<Vec<T>> for TArray<T> {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
 pub struct FString(TArray<i16>);
 
 impl Default for FString {
@@ -233,6 +231,17 @@ impl FString {
     }
 }
 
+impl<T> Drop for TArray<T> {
+    fn drop(&mut self) {
+        if !self.data.is_null() {
+            // Create a Vec from the raw parts so Rust can clean it up
+            unsafe {
+                Vec::from_raw_parts(self.data, self.count as usize, self.capacity as usize);
+            }
+        }
+    }
+}
+
 impl Debug for FString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self, f)
@@ -258,7 +267,6 @@ impl Display for FString {
 #[repr(C)]
 pub struct UObjectVTable(c_void);
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C, packed(4))]
 pub struct UObject {
     pub vtable_: *const UObjectVTable,
@@ -308,45 +316,19 @@ impl UObject {
     pub fn get_name(&self) -> &CStr {
         self.name.get_name()
     }
-
-    pub fn process_event(
-        &self,
-        function: *mut UFunction,
-        params: *mut c_void,
-        result: *mut c_void,
-    ) {
-        let fn_ptr = unsafe { self.vtable_.add(70) }.cast::<extern "C" fn(
-            *mut UObject,
-            *mut UFunction,
-            *mut c_void,
-            *mut c_void,
-        )>();
-
-        unsafe {
-            (*fn_ptr)(
-                self as *const UObject as *mut UObject,
-                function,
-                params,
-                result,
-            )
-        }
-    }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct FQWord {
     pub a: c_int,
     pub b: c_int,
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct FPointer {
     pub dummy: c_int,
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct FName {
     pub name_entry: *mut FNameEntry,
@@ -367,7 +349,6 @@ impl FName {
 }
 
 // Name entry
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct FNameEntry {
     // Unknown block of data
@@ -384,7 +365,6 @@ impl FNameEntry {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct UClass {
     pub _base: UState,
@@ -401,7 +381,6 @@ impl UClass {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct UState {
     pub _base: UStruct,
@@ -418,7 +397,6 @@ impl UState {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct UStruct {
     pub _base: UField,
@@ -435,7 +413,6 @@ impl UStruct {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C, packed(4))]
 pub struct UField {
     pub _base: UObject,
@@ -453,7 +430,6 @@ impl UField {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C, packed(4))]
 pub struct UFunction {
     pub _base: UStruct,
@@ -473,7 +449,6 @@ impl UFunction {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct FScriptDelegate {
     pub unknown_data_00: [::std::os::raw::c_uchar; 12usize],
