@@ -7,11 +7,13 @@
         "hmodule",
         "HOSTENT",
         "movzx",
+        "nonoverlapping",
         "PCSTR",
         "READWRITE",
         "redirector",
         "reqwest",
         "Segoe",
+        "sfxonlinefoundation",
         "stdcall",
         "THREADENTRY"
     ]
