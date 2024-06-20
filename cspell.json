@@ -2,10 +2,12 @@
     "minWordLength": 5,
     "words": [
         "addrtype",
+        "dealloc",
         "gethostbyname",
         "gosredirector",
         "hmodule",
         "HOSTENT",
+        "IISFX",
         "movzx",
         "nonoverlapping",
         "PCSTR",
@@ -13,8 +15,12 @@
         "redirector",
         "reqwest",
         "Segoe",
+        "sfxgame",
         "sfxonlinefoundation",
         "stdcall",
-        "THREADENTRY"
+        "thiscall",
+        "THREADENTRY",
+        "USFXSF",
+        "vtable"
     ]
 }
