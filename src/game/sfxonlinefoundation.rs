@@ -1,5 +1,5 @@
 use super::core::{FName, FScriptDelegate, TArray, UObject};
-use std::os::raw::{c_ulong, c_void};
+use std::os::raw::{c_uchar, c_ulong, c_void};
 
 // Class SFXOnlineFoundation.SFXOnlineComponent
 // 0x0028 (0x0064 - 0x003C)
@@ -16,5 +16,5 @@ pub struct USFXOnlineComponent {
 #[repr(C, packed(4))]
 pub struct FSFXOnlineSubscriberEventType {
     pub event_callback: FName,
-    pub event_type: ::std::os::raw::c_uchar,
+    pub event_type: c_uchar,
 }

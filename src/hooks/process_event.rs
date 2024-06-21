@@ -1,24 +1,19 @@
-use std::os::raw::c_void;
-
-use serde::{Deserialize, Serialize};
-use windows_sys::Win32::System::Memory::{
-    VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE,
-};
-
+use super::mem::use_memory;
 use crate::game::{
     core::{AsObjectRef, FString, UFunction, UObject},
     sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
 };
-
-use super::mem::use_memory;
+use serde::{Deserialize, Serialize};
+use std::os::raw::c_void;
+use windows_sys::Win32::System::Memory::{
+    VirtualAlloc, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE,
+};
 
 type ProcessEvent =
     unsafe extern "thiscall" fn(*mut UObject, *mut UFunction, *mut c_void, *mut c_void);
 
 // Original function for ProcessEvent
 static mut PROCESS_EVENT_ORIGINAL: Option<ProcessEvent> = None;
-
-const JMP_SIZE: usize = 5; // Size of a near jump instruction in x86
 
 /// Memory address the process event function is stored at
 const PROCESS_EVENT_OFFSET: usize = 0x00453120;
@@ -28,6 +23,7 @@ const PROCESS_EVENT_OFFSET: usize = 0x00453120;
 #[allow(clippy::missing_safety_doc)]
 pub unsafe fn hook_process_event() {
     const JMP: u8 =  0xE9 /* jmp */;
+    const JMP_SIZE: usize = 5; // Size of a near jump instruction in x86
 
     let target = PROCESS_EVENT_OFFSET as *const u8 as *mut u8;
     let hook = fake_process_event as *const u8;
@@ -87,15 +83,27 @@ pub unsafe fn hook_process_event() {
 /// send to have displayed in the in-game terminal
 #[derive(Deserialize, Serialize)]
 pub struct SystemTerminalMessage {
+    /// Title displayed on the terminal
     title: String,
+    /// Message displayed on the terminal
     message: String,
+    /// Message displayed at the top of the terminal (Can be empty for a default image)
     image: String,
+    /// Type of message (Where it appears)
     ty: u8,
+    /// Unique tracking ID for the message can be used to replace a message
     tracking_id: i32,
+    /// Priority of the message for ordering
     priority: i32,
 }
 
+/// Calls the original ProcessEvent function
+///
 /// # Safety
+///
+/// Memory for the process event call should always point to
+/// the valid ProcessEvent function as long as the binary
+/// offset doesn't change
 pub unsafe fn process_event(
     this: *mut UObject,
     func: *mut UFunction,
@@ -109,7 +117,13 @@ pub unsafe fn process_event(
     original_fn(this, func, params, result);
 }
 
-#[allow(clippy::missing_safety_doc)]
+/// Hooked ProcessEvent function that allows extending the games
+/// behavior by listing for specific events
+///
+/// # Safety
+///
+/// Checks are made on pointers that are used, most events are forwarded
+/// directly to the original function.
 #[no_mangle]
 pub unsafe extern "thiscall" fn fake_process_event(
     object: *mut UObject,

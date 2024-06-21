@@ -1,9 +1,14 @@
-use super::{core::FString, sfxonlinefoundation::USFXOnlineComponent};
 use crate::{
-    game::core::{get_function_object, UFunction},
+    game::{
+        core::{get_function_object, FString, UFunction},
+        sfxonlinefoundation::USFXOnlineComponent,
+    },
     hooks::process_event::process_event,
 };
-use std::ptr::null_mut;
+use std::{
+    os::raw::{c_int, c_uchar},
+    ptr::null_mut,
+};
 
 macro_rules! define_method {
     ($func_name:ident, $fn_index:expr, $( $arg_name:ident : $arg_type:ty ),*) => {
@@ -69,9 +74,9 @@ pub struct FSFXOnlineMOTDInfo {
     pub message: FString,
     pub title: FString,
     pub image: FString,
-    pub tracking_id: ::std::os::raw::c_int,
-    pub priority: ::std::os::raw::c_int,
-    pub bw_ent_id: ::std::os::raw::c_int,
-    pub offer_id: ::std::os::raw::c_int,
-    pub ty: ::std::os::raw::c_uchar,
+    pub tracking_id: c_int,
+    pub priority: c_int,
+    pub bw_ent_id: c_int,
+    pub offer_id: c_int,
+    pub ty: c_uchar,
 }
