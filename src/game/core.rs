@@ -13,28 +13,38 @@ static GAME_OBJECT_OFFSET: u32 = 0x01AB5634;
 
 type GameObjectsArray = TArray<*mut UObject>;
 
-/// Obtains a reference to the [TArray] containing the game objects
-pub fn game_objects_ref() -> &'static mut TArray<*mut UObject> {
-    unsafe {
-        (GAME_OBJECT_OFFSET as *const GameObjectsArray as *mut GameObjectsArray)
-            .as_mut()
-            .expect("Game objects pointer was null")
-    }
+/// Obtains a mutable reference to the global [TArray] of objects
+///
+/// ## Safety
+///
+/// In a valid game executable this memory address should always
+/// point to a valid [TArray] of pointers to [UObject]s
+pub unsafe fn game_objects_mut() -> &'static mut TArray<*mut UObject> {
+    (GAME_OBJECT_OFFSET as *const GameObjectsArray as *mut GameObjectsArray)
+        .as_mut()
+        .expect("Game objects pointer was null")
 }
 
 /// Gets a function object by its index in the game objects array
-pub fn get_function_object(index: usize) -> Option<*mut UFunction> {
-    let fn_object = *game_objects_ref().get(index)?;
+///
+/// ## Safety
+///
+/// As long as the game is valid and the index provided points to
+/// a [UFunction] object this operation is safe
+pub unsafe fn get_function_object(index: usize) -> Option<*mut UFunction> {
+    let fn_object = *game_objects_mut().get(index)?;
     let fn_ptr = fn_object.cast::<UFunction>() as *mut _;
     Some(fn_ptr)
 }
 
-pub trait AsObjectRef {
+/// Trait implemented by things that extend the base
+/// [UObject] C++ class to allow accessing the base object
+pub trait UObjectExt {
+    /// Provides the object ref
     fn as_object_ref(&self) -> &UObject;
-}
 
-pub trait GetObjectName {
-    fn get_object_name(&self) -> &CStr;
+    /// Provides the object name
+    fn object_name(&self) -> &CStr;
 }
 
 /// Array type
@@ -381,15 +391,15 @@ impl UObject {
         };
 
         let class_name = class
-            .get_object_name()
+            .object_name()
             .to_str()
             .expect("Class name invalid utf8");
         let outer_name = outer
-            .get_object_name()
+            .object_name()
             .to_str()
             .expect("Outer class name invalid utf8");
         let this_name = self
-            .get_object_name()
+            .object_name()
             .to_str()
             .expect("This class name invalid utf8");
 
@@ -401,7 +411,7 @@ impl UObject {
         };
 
         let outer_outer_name = outer_outer
-            .get_object_name()
+            .object_name()
             .to_str()
             .expect("Class name invalid utf8");
 
@@ -412,9 +422,14 @@ impl UObject {
     }
 }
 
-impl GetObjectName for UObject {
+impl UObjectExt for UObject {
     #[inline]
-    fn get_object_name(&self) -> &CStr {
+    fn as_object_ref(&self) -> &UObject {
+        self
+    }
+
+    #[inline]
+    fn object_name(&self) -> &CStr {
         self.name.get_name()
     }
 }
@@ -474,17 +489,15 @@ pub struct UClass {
     pub unknown_data00: [c_uchar; 188usize],
 }
 
-impl GetObjectName for UClass {
-    #[inline]
-    fn get_object_name(&self) -> &CStr {
-        self._base.get_object_name()
-    }
-}
-
-impl AsObjectRef for UClass {
+impl UObjectExt for UClass {
     #[inline]
     fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
+    }
+
+    #[inline]
+    fn object_name(&self) -> &CStr {
+        self._base.object_name()
     }
 }
 
@@ -494,17 +507,15 @@ pub struct UState {
     pub unknown_data00: [c_uchar; 36usize],
 }
 
-impl GetObjectName for UState {
-    #[inline]
-    fn get_object_name(&self) -> &CStr {
-        self._base.get_object_name()
-    }
-}
-
-impl AsObjectRef for UState {
+impl UObjectExt for UState {
     #[inline]
     fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
+    }
+
+    #[inline]
+    fn object_name(&self) -> &CStr {
+        self._base.object_name()
     }
 }
 
@@ -514,17 +525,15 @@ pub struct UStruct {
     pub unknown_data00: [c_uchar; 64usize],
 }
 
-impl GetObjectName for UStruct {
-    #[inline]
-    fn get_object_name(&self) -> &CStr {
-        self._base.get_object_name()
-    }
-}
-
-impl AsObjectRef for UStruct {
+impl UObjectExt for UStruct {
     #[inline]
     fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
+    }
+
+    #[inline]
+    fn object_name(&self) -> &CStr {
+        self._base.object_name()
     }
 }
 
@@ -535,17 +544,15 @@ pub struct UField {
     pub next: *mut UField,
 }
 
-impl GetObjectName for UField {
-    #[inline]
-    fn get_object_name(&self) -> &CStr {
-        self._base.get_object_name()
-    }
-}
-
-impl AsObjectRef for UField {
+impl UObjectExt for UField {
     #[inline]
     fn as_object_ref(&self) -> &UObject {
-        &self._base
+        self._base.as_object_ref()
+    }
+
+    #[inline]
+    fn object_name(&self) -> &CStr {
+        self._base.object_name()
     }
 }
 
@@ -559,17 +566,15 @@ pub struct UFunction {
     pub unknown_data00: [c_uchar; 8usize],
 }
 
-impl GetObjectName for UFunction {
-    #[inline]
-    fn get_object_name(&self) -> &CStr {
-        self._base.get_object_name()
-    }
-}
-
-impl AsObjectRef for UFunction {
+impl UObjectExt for UFunction {
     #[inline]
     fn as_object_ref(&self) -> &UObject {
         self._base.as_object_ref()
+    }
+
+    #[inline]
+    fn object_name(&self) -> &CStr {
+        self._base.object_name()
     }
 }
 

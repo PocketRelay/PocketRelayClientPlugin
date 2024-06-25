@@ -1,6 +1,6 @@
 use super::mem::use_memory;
 use crate::game::{
-    core::{AsObjectRef, FString, UFunction, UObject},
+    core::{FString, UFunction, UObject, UObjectExt},
     sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
 };
 use serde::{Deserialize, Serialize};
