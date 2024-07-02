@@ -160,33 +160,35 @@ pub unsafe extern "thiscall" fn fake_process_event(
 
         let original_message = &original_params.message.to_string();
 
-        // Handle system messages
-        if let Some(message) = original_message.strip_prefix("[SYSTEM_TERMINAL]") {
-            let value = serde_json::from_str::<SystemTerminalMessage>(
-                // Stip all non JSON data from the end of the payload
-                message.trim_end_matches(|value| value != '}'),
-            );
+        // Split the payload at new lines
+        let lines = original_message.lines();
 
-            if let Ok(message) = value {
-                // Get mutable reference to type
-                let this = object
-                    .cast::<USFXOnlineComponentUI>()
-                    .as_mut()
-                    .expect("USFXOnlineComponentUI class was null");
+        for part in lines {
+            // Handle system messages
+            if let Some(message) = part.strip_prefix("[SYSTEM_TERMINAL]") {
+                let value = serde_json::from_str::<SystemTerminalMessage>(message);
 
-                // Send custom message instead
-                this.event_on_display_notification(FSFXOnlineMOTDInfo {
-                    title: FString::from_string(message.title),
-                    message: FString::from_string(message.message),
-                    image: FString::from_string(message.image),
-                    tracking_id: message.tracking_id,
-                    priority: message.priority,
-                    bw_ent_id: 0,
-                    offer_id: 0,
-                    ty: message.ty,
-                });
+                if let Ok(message) = value {
+                    // Get mutable reference to type
+                    let this = object
+                        .cast::<USFXOnlineComponentUI>()
+                        .as_mut()
+                        .expect("USFXOnlineComponentUI class was null");
 
-                return;
+                    // Send custom message instead
+                    this.event_on_display_notification(FSFXOnlineMOTDInfo {
+                        title: FString::from_string(message.title),
+                        message: FString::from_string(message.message),
+                        image: FString::from_string(message.image),
+                        tracking_id: message.tracking_id,
+                        priority: message.priority,
+                        bw_ent_id: 0,
+                        offer_id: 0,
+                        ty: message.ty,
+                    });
+
+                    return;
+                }
             }
         }
     }
