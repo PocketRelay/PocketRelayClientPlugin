@@ -117,6 +117,65 @@ pub unsafe fn process_event(
     original_fn(this, func, params, result);
 }
 
+/// Structure of the parameters for SFXGame.SFXOnlineComponentUI.OnDisplayNotification
+#[repr(C)]
+#[allow(non_camel_case_types)]
+struct OnDisplayNotificationParams {
+    info: FSFXOnlineMOTDInfo,
+}
+
+/// Handles incoming notification display calls, adds additional logic to
+/// check for special JSON payload messages send by Pocket Relay to display
+/// custom messages
+fn process_on_display_notification(
+    this: &mut USFXOnlineComponentUI,
+    params: &OnDisplayNotificationParams,
+) -> bool {
+    // Get the info data
+    let info = &params.info;
+
+    // Extract the message
+    let original_message = &info.message.to_string();
+
+    // Split the payload at new lines
+    let lines = original_message.lines();
+
+    // Find a system message line
+    let system_message = lines
+        .into_iter()
+        // Find a system message line
+        .find_map(|line| line.strip_prefix("[SYSTEM_TERMINAL]"));
+
+    let system_message = match system_message {
+        Some(value) => value,
+        // No system message found
+        None => return false,
+    };
+
+    // Parse the system message
+    let message = match serde_json::from_str::<SystemTerminalMessage>(system_message) {
+        Ok(value) => value,
+        // Ignore malformed system message
+        Err(_) => return false,
+    };
+
+    // Send custom message instead
+    unsafe {
+        this.event_on_display_notification(FSFXOnlineMOTDInfo {
+            title: FString::from_string(message.title),
+            message: FString::from_string(message.message),
+            image: FString::from_string(message.image),
+            tracking_id: message.tracking_id,
+            priority: message.priority,
+            bw_ent_id: 0,
+            offer_id: 0,
+            ty: message.ty,
+        });
+    }
+
+    true
+}
+
 /// Hooked ProcessEvent function that allows extending the games
 /// behavior by listing for specific events
 ///
@@ -145,50 +204,14 @@ pub unsafe extern "thiscall" fn fake_process_event(
 
     // Hook existing display notification event code
     if name.contains("Function SFXGame.SFXOnlineComponentUI.OnDisplayNotification") {
-        /// Structure of the parameters
-        #[repr(C)]
-        #[allow(non_camel_case_types)]
-        struct Params {
-            info: FSFXOnlineMOTDInfo,
-        }
+        // Cast the types
+        let this = object.cast::<USFXOnlineComponentUI>().as_mut();
+        let params = params.cast::<OnDisplayNotificationParams>().as_mut();
 
-        let original_params = &params
-            .cast::<Params>()
-            .as_mut()
-            .expect("OnDisplayNotification params were null")
-            .info;
-
-        let original_message = &original_params.message.to_string();
-
-        // Split the payload at new lines
-        let lines = original_message.lines();
-
-        for part in lines {
-            // Handle system messages
-            if let Some(message) = part.strip_prefix("[SYSTEM_TERMINAL]") {
-                let value = serde_json::from_str::<SystemTerminalMessage>(message);
-
-                if let Ok(message) = value {
-                    // Get mutable reference to type
-                    let this = object
-                        .cast::<USFXOnlineComponentUI>()
-                        .as_mut()
-                        .expect("USFXOnlineComponentUI class was null");
-
-                    // Send custom message instead
-                    this.event_on_display_notification(FSFXOnlineMOTDInfo {
-                        title: FString::from_string(message.title),
-                        message: FString::from_string(message.message),
-                        image: FString::from_string(message.image),
-                        tracking_id: message.tracking_id,
-                        priority: message.priority,
-                        bw_ent_id: 0,
-                        offer_id: 0,
-                        ty: message.ty,
-                    });
-
-                    return;
-                }
+        // Try handle a notification
+        if let (Some(this), Some(params)) = (this, params) {
+            if process_on_display_notification(this, params) {
+                return;
             }
         }
     }
