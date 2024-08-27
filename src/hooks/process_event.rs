@@ -3,6 +3,7 @@ use crate::game::{
     core::{FString, UFunction, UObject, UObjectExt},
     sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
 };
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::os::raw::c_void;
 use windows_sys::Win32::System::Memory::{
@@ -31,17 +32,21 @@ pub unsafe fn hook_process_event() {
     let mut original_bytes: [u8; JMP_SIZE] = [0; JMP_SIZE];
 
     // Store the original jump instruction
-    std::ptr::copy_nonoverlapping(target, original_bytes.as_mut_ptr(), JMP_SIZE);
+    std::ptr::copy_nonoverlapping(target, original_bytes.as_mut_ptr(), original_bytes.len());
+
+    debug!("store original jump instruction {:?}", original_bytes);
 
     // Determine the offset to jump to the hooked function
-    let relative_offset = hook as isize - target as isize - JMP_SIZE as isize;
+    let relative_offset = hook as i32 - target as i32 - JMP_SIZE as i32;
+
+    debug!("relative offset {:#016x}", relative_offset);
 
     use_memory(target, JMP_SIZE, |mem| {
         // Set the jump instruction
         *mem = JMP;
 
         // Set the jump offset
-        let jump_addr = mem.byte_add(1).cast::<isize>();
+        let jump_addr = mem.byte_add(1).cast::<i32>();
         *jump_addr = relative_offset.to_le();
     });
 
@@ -59,19 +64,21 @@ pub unsafe fn hook_process_event() {
     }
 
     // Determine the offset to jump back
-    let jump_back_offset = target.add(JMP_SIZE) as isize - trampoline as isize - JMP_SIZE as isize;
+    let jump_back_offset = target as i32 - trampoline as i32;
+
+    debug!("jump back offset {:#016x}", jump_back_offset);
 
     {
         // Write the original jump instruction to the start of the trampoline
         let mem = trampoline.cast::<u8>();
-        std::ptr::copy_nonoverlapping(original_bytes.as_ptr(), mem, JMP_SIZE);
+        std::ptr::copy_nonoverlapping(original_bytes.as_ptr(), mem, original_bytes.len());
 
         // Write the jump back from the trampoline
-        let mem = mem.add(JMP_SIZE);
+        let mem = mem.byte_add(JMP_SIZE);
         *mem = JMP;
 
         // Write the jump offset
-        let jump_addr = mem.byte_add(1).cast::<isize>();
+        let jump_addr = mem.byte_add(1).cast::<i32>();
         *jump_addr = jump_back_offset.to_le();
     }
 
