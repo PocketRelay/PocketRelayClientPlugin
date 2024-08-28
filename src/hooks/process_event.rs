@@ -31,13 +31,13 @@ pub unsafe fn hook_process_event() {
 
     let mut original_bytes: [u8; JMP_SIZE] = [0; JMP_SIZE];
 
-    // Store the original jump instruction
+    // Store the original function bytes that will be replaced with a jump
     std::ptr::copy_nonoverlapping(target, original_bytes.as_mut_ptr(), original_bytes.len());
 
-    debug!("store original jump instruction {:?}", original_bytes);
+    debug!("store original instructions {:?}", original_bytes);
 
     // Determine the offset to jump to the hooked function
-    let relative_offset = hook as i32 - target as i32 - JMP_SIZE as i32;
+    let relative_offset = hook as i32 - (target as i32 + JMP_SIZE as i32);
 
     debug!("relative offset {:#016x}", relative_offset);
 
@@ -64,7 +64,7 @@ pub unsafe fn hook_process_event() {
     }
 
     // Determine the offset to jump back
-    let jump_back_offset = target as i32 - trampoline as i32;
+    let jump_back_offset = target as i32 - (trampoline as i32 + JMP_SIZE as i32);
 
     debug!("jump back offset {:#016x}", jump_back_offset);
 
