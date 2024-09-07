@@ -17,7 +17,7 @@ pub fn start_all_servers(ctx: Arc<ClientContext>) {
     let redirector = redirector::start_redirector_server();
     let blaze = blaze::start_blaze_server(ctx.clone());
     let http = http::start_http_server(ctx.clone());
-    let tunnel = tunnel::start_tunnel_server(ctx.clone());
+    let tunnel = udp_tunnel::start_tunnel_server_v2(ctx.clone());
     let qos = qos::start_qos_server();
     let telemetry = telemetry::start_telemetry_server(ctx);
 
