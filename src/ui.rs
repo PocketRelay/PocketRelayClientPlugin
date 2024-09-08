@@ -169,6 +169,7 @@ impl App {
             lookup.version
         );
         self.connection_label.set_text(&text);
+        self.set_button.set_text("Disconnect");
 
         // Resume game threads
         unsafe {
