@@ -14,7 +14,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Shared backing library
-pocket-relay-client-shared = { version = "^0.2", path = "../PocketRelayClientShared" }
+pocket-relay-client-shared = { version = "^0.3", path = "../PocketRelayClientShared" }
 
 # Logging
 env_logger = "0.10"

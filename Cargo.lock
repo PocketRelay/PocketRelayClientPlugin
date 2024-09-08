@@ -989,7 +989,7 @@ checksum = "414cec62c6634ae900ea1c56128dfe87cf63e7caece0852ec76aba307cebadb7"
 
 [[package]]
 name = "pocket-relay-client-shared"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "blaze-ssl-async",
  "bytes",
@@ -998,6 +998,7 @@ dependencies = [
  "local-ip-address",
  "log",
  "parking_lot",
+ "pocket-relay-udp-tunnel",
  "reqwest",
  "semver",
  "serde",
@@ -1022,6 +1023,15 @@ dependencies = [
  "serde_json",
  "tokio",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "pocket-relay-udp-tunnel"
+version = "0.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19cd08a4437ac5638666cfcb2cf16f433c0d2b4c5a44ccee822950dde6d55fb8"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
