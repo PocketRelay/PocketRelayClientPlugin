@@ -39,7 +39,7 @@ fn attach() {
     unsafe { suspend_all_threads() };
 
     // Debug allocates a console window to display output
-    // #[cfg(debug_assertions)]
+    #[cfg(debug_assertions)]
     {
         unsafe { windows_sys::Win32::System::Console::AllocConsole() };
     }
