@@ -184,6 +184,7 @@ fn load_identity() -> Option<Identity> {
 
 /// Windows DLL entrypoint for the plugin
 #[no_mangle]
+#[allow(non_snake_case)]
 extern "stdcall" fn DllMain(_hmodule: isize, reason: u32, _: *mut ()) -> bool {
     match reason {
         // Handle attaching
