@@ -1,5 +1,5 @@
 # Action to build a release build on a specific tag
-name: Build
+name: Build Tagged Release
 on:
   workflow_dispatch:
   push:
@@ -18,7 +18,7 @@ jobs:
       - name: Build Client
         run: cargo build --release --verbose --target i686-pc-windows-msvc
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ASI Plugin
           path: "./target/i686-pc-windows-msvc/release/pocket_relay_plugin.dll"

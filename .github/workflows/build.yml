@@ -20,7 +20,7 @@ jobs:
       - name: Run tests
         run: cargo test --verbose --target i686-pc-windows-msvc
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ASI Plugin
           path: "./target/i686-pc-windows-msvc/debug/pocket_relay_plugin.dll"
