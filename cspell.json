@@ -18,9 +18,11 @@
         "Segoe",
         "sfxgame",
         "sfxonlinefoundation",
+        "SNAPTHREAD",
         "stdcall",
         "thiscall",
         "THREADENTRY",
+        "Toolhelp",
         "USFXSF",
         "vtable"
     ]
