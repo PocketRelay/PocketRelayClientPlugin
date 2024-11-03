@@ -23,6 +23,7 @@
         "thiscall",
         "THREADENTRY",
         "Toolhelp",
+        "ulonglong",
         "USFXSF",
         "vtable"
     ]
