@@ -5,8 +5,8 @@ use crate::{
         reqwest::Client,
         servers::{has_server_tasks, stop_server_tasks},
     },
-    resume_all_threads,
     servers::start_all_servers,
+    threads::resume_all_threads,
     update,
 };
 use futures::FutureExt;
@@ -172,9 +172,7 @@ impl App {
         self.set_button.set_text("Disconnect");
 
         // Resume game threads
-        unsafe {
-            resume_all_threads();
-        }
+        resume_all_threads();
     }
 }
 
@@ -223,9 +221,7 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
     dispatch_thread_events();
 
     // Resume the game threads if we close the UI
-    unsafe {
-        resume_all_threads();
-    }
+    resume_all_threads();
 
     let shutdown_signal = tokio::signal::ctrl_c();
     let _ = runtime.block_on(shutdown_signal);
