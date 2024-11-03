@@ -25,7 +25,7 @@ pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Handles the plugin being attached to the game
 fn attach() {
     // Suspend all game threads so the user has a chance to connect to a server
-    unsafe { threads::suspend_all_threads() };
+    threads::suspend_all_threads();
 
     // Debug allocates a console window to display output
     #[cfg(debug_assertions)]
