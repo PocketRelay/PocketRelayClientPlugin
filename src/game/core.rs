@@ -105,6 +105,24 @@ impl<T> TArray<T> {
         Some(item)
     }
 
+    /// Gets a reference to specific element by index
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index >= self.len() {
+            return None;
+        }
+
+        // Get a pointer to the data at the provided index
+        let item = unsafe { self.data.add(index) };
+
+        let item = match unsafe { item.as_mut() } {
+            Some(value) => value,
+            // Will only occur if array was created from an invalid data ptr
+            None => panic!("Array item at index {index} was a nullptr"),
+        };
+
+        Some(item)
+    }
+
     /// Returns the length of the array
     pub fn len(&self) -> usize {
         self.count as usize
@@ -138,6 +156,14 @@ impl<T> TArray<T> {
     /// Creates a reference iterator for the values within the array
     pub fn iter(&self) -> TArrayIter<'_, T> {
         TArrayIter {
+            arr: self,
+            index: 0,
+        }
+    }
+
+    /// Creates a reference iterator for the values within the array
+    pub fn iter_mut(&mut self) -> TArrayIterMut<'_, T> {
+        TArrayIterMut {
             arr: self,
             index: 0,
         }
@@ -272,6 +298,35 @@ impl<'a, T> Iterator for TArrayIter<'a, T> {
 
         let item = match self.arr.get(self.index) {
             Some(value) => value,
+            None => panic!("Array item at index {} was a nullptr", self.index),
+        };
+
+        self.index += 1;
+
+        Some(item)
+    }
+}
+/// Iterator for a [TArray]
+pub struct TArrayIterMut<'a, T> {
+    arr: &'a mut TArray<T>,
+    index: usize,
+}
+
+impl<'a, T> Iterator for TArrayIterMut<'a, T> {
+    type Item = &'a mut T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Reached end of array
+        if self.index >= self.arr.len() {
+            return None;
+        }
+
+        // Get a pointer to the data at the provided index
+        let item = unsafe { self.arr.data.add(self.index) };
+
+        let item = match unsafe { item.as_mut() } {
+            Some(value) => value,
+            // Will only occur if array was created from an invalid data ptr
             None => panic!("Array item at index {} was a nullptr", self.index),
         };
 
