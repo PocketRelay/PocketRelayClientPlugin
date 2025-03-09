@@ -1,3 +1,4 @@
 [toolchain]
 channel = "1.75.0"
 host = "i686-pc-windows-msvc"
+components = ["rust-analyzer"]
