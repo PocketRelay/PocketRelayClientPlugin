@@ -19,6 +19,7 @@ pocket-relay-client-shared = { version = "^0.3" }
 # Logging
 env_logger = "0.10"
 log = "0.4"
+log-panics = { version = "2", features = ["with-backtrace"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

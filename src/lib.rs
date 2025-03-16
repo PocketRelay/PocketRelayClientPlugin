@@ -38,6 +38,8 @@ fn attach() {
         .filter_level(log::LevelFilter::Debug)
         .init();
 
+    log_panics::init();
+
     // Apply hooks
     unsafe { hooks::apply_hooks() };
 
