@@ -1,9 +1,12 @@
 use super::mem::use_memory;
-use crate::game::{
-    core::{FString, UFunction, UObject, UObjectExt},
-    sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
+use crate::{
+    game::{
+        core::{FString, UFunction, UObject, UObjectExt},
+        sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
+    },
+    hooks::mem::find_pattern,
 };
-use log::debug;
+use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use std::os::raw::c_void;
 use windows_sys::Win32::System::Memory::{
@@ -17,7 +20,60 @@ type ProcessEvent =
 static mut PROCESS_EVENT_ORIGINAL: Option<ProcessEvent> = None;
 
 /// Memory address the process event function is stored at
-const PROCESS_EVENT_OFFSET: usize = 0x00453120;
+// const PROCESS_EVENT_OFFSET: usize = 0x00453120;
+
+/// Address to start matching from
+const PROCESS_EVENT_START_OFFSET: usize = 0x401000;
+/// Address to end matching at
+const PROCESS_EVENT_END_OFFSET: usize = 0xFFFFFF;
+/// Mask to use while matching the opcodes below
+const PROCESS_EVENT_MASK: &str = "xxxxxxxxxxxx?xxxxxxxxxxxx?xxxxxxxxxxxxx?xxxxxx?x????????x?xx?x?x?x?xx?xx?xxxxxxxxxxx?xx?x?x?x?xxxxxxxx?xxxx?x?x?xx?x?x?x?xxxxxxxx?xxx?xx?xx?x?x?x?xx?xx?x?xx?x?xxxx?xxxxxxxxx?x?x";
+/// Op codes to match against
+const PROCESS_EVENT_OP_CODES: &[u8] = &[
+    0x55, // push ebp
+    0x8B, 0xEC, // mov ebp, esp
+    0x6A, 0xFF, // push 0xFF
+    0x68, 0xC8, 0x43, 0x1A, 0x01, // push 0x1A43C8
+    0x64, 0xA1, 0x00, 0x00, 0x00, 0x00, // mov eax, [fs:0x0]
+    0x50, // push eax
+    0x83, 0xEC, 0x48, // sub esp, 0x48
+    0xA1, 0x80, 0x5B, 0x90, 0x01, // mov eax, [0x1905B80]
+    0x33, 0xC5, // xor eax, ebp
+    0x89, 0x45, 0xEC, // mov [ebp-0x14], eax
+    0x53, // push ebx
+    0x56, // push esi
+    0x57, // push edi
+    0x50, // push eax
+    0x8D, 0x45, 0xF4, // lea eax, [ebp-0xC]
+    0x64, 0xA3, 0x00, 0x00, 0x00, 0x00, // mov [fs:0x0], eax
+    0x8B, 0xF1, // mov esi, ecx
+    0x89, 0x75, 0xE8, // mov [ebp-0x18], esi
+    0x8B, 0x5D, 0x08, // mov ebx, [ebp+0x8]
+    0xF7, 0x83, 0x88, 0x00, 0x00, 0x00, // test dword ptr [ebx+0x88], 0
+    0x02, 0x04, 0x00, 0x00, // add [ebx+0x4], al
+    0x0F, 0x84, 0x21, 0x02, 0x00, 0x00, // je 0x222
+    0x83, 0x7B, 0x04, 0xFF, // cmp dword ptr [ebx+0x4], 0xFF
+    0x75, 0x13, // jnz 0x13
+    0x6A, 0x01, // push 0x1
+    0x6A, 0x01, // push 0x1
+    0x68, 0x30, 0x71, 0x6A, 0x01, // push 0x1A6730
+    0x33, 0xC9, // xor ecx, ecx
+    0x8D, 0x55, 0xE0, // lea edx, [ebp-0x20]
+    0xE8, 0xC4, 0x79, 0x05, 0x00, // call 0x5A79C4
+    0x8B, 0x06, // mov eax, [esi]
+    0x8B, 0x50, 0x44, // mov edx, [eax+0x44]
+    0x8B, 0xCE, // mov ecx, esi
+    0xFF, 0xD2, // call edx
+    0x85, 0xC0, // test eax, eax
+    0x0F, 0x85, 0xF7, 0x01, 0x00, 0x00, // jne 0x1F7
+    0x66, 0x39, 0x83, // cmp word ptr [ebx+0x83], ax
+    0x8C, 0x00, 0x00, 0x00, // cmp word ptr [ebx], 0
+    0x0F, 0x85, 0xEA, 0x01, 0x00, 0x00, // jne 0x1EAC
+    0xF7, 0x83, 0x88, 0x00, 0x00, 0x00, // test dword ptr [ebx+0x88], 0
+    0x00, 0x04, 0x00, 0x00, // add [ebx+0x4], al
+    0x8B, 0x7D, 0x0C, // mov edi, [ebp+0xC]
+    0x74, 0x18, // je 0x18
+];
 
 /// Hooks the game [ProcessEvent] function to use [fake_process_event] instead
 /// to allow processing events that occur in the game
@@ -26,7 +82,17 @@ pub unsafe fn hook_process_event() {
     const JMP: u8 =  0xE9 /* jmp */;
     const JMP_SIZE: usize = 5; // Size of a near jump instruction in x86
 
-    let target = PROCESS_EVENT_OFFSET as *const u8 as *mut u8;
+    let Some(target) = find_pattern(
+        PROCESS_EVENT_START_OFFSET,
+        PROCESS_EVENT_END_OFFSET,
+        PROCESS_EVENT_MASK,
+        PROCESS_EVENT_OP_CODES,
+    ) else {
+        warn!("Failed to find process_event hook position");
+        return;
+    };
+
+    // let target = PROCESS_EVENT_OFFSET as *const u8 as *mut u8;
     let hook = fake_process_event as *const u8;
 
     let mut original_bytes: [u8; JMP_SIZE] = [0; JMP_SIZE];
