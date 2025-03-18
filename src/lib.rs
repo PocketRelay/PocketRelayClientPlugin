@@ -41,7 +41,9 @@ fn attach() {
     log_panics::init();
 
     // Apply hooks
-    unsafe { hooks::apply_hooks() };
+    std::thread::spawn(|| {
+        unsafe { hooks::apply_hooks() };
+    });
 
     // Load the config file
     let config = read_config_file();

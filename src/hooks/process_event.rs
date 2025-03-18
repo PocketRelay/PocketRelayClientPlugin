@@ -92,6 +92,8 @@ pub unsafe fn hook_process_event() {
         return;
     };
 
+    debug!("Found ProcessEvent @ {:#016x}", target as usize);
+
     // let target = PROCESS_EVENT_OFFSET as *const u8 as *mut u8;
     let hook = fake_process_event as *const u8;
 
