@@ -16,6 +16,7 @@ crate-type = ["cdylib"]
 # Shared backing library
 pocket-relay-client-shared = { version = "^0.3" }
 
+
 # Logging
 env_logger = "0.10"
 log = "0.4"
@@ -30,6 +31,10 @@ native-windows-gui = { version = "1", features = ["notice"] }
 native-windows-derive = { version = "1" }
 
 futures = "0.3"
+hudhook = { version = "0.8.1", default-features = false, features = [
+    "dx9",
+], path = "./hudhook" }
+parking_lot = "0.12.4"
 
 [dependencies.windows-sys]
 version = "0.52"

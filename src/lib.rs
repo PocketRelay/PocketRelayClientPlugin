@@ -5,15 +5,19 @@ use core::{
     api::{create_http_client, read_client_identity},
     reqwest::{Client, Identity},
 };
+use hudhook::{hooks::dx9::ImguiDx9Hooks, Hudhook};
 use log::error;
 use pocket_relay_client_shared as core;
 use std::path::Path;
 use ui::{confirm_message, error_message};
 use windows_sys::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
 
+use crate::overlay::OverlayRenderLoop;
+
 pub mod config;
 pub mod game;
 pub mod hooks;
+pub mod overlay;
 pub mod servers;
 pub mod threads;
 pub mod ui;
@@ -23,9 +27,9 @@ pub mod update;
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Handles the plugin being attached to the game
-fn attach() {
+fn attach(hmodule: isize) {
     // Suspend all game threads so the user has a chance to connect to a server
-    threads::suspend_all_threads();
+    // threads::suspend_all_threads();
 
     // Debug allocates a console window to display output
     #[cfg(debug_assertions)]
@@ -54,10 +58,30 @@ fn attach() {
     // Create the internal HTTP client
     let client: Client = create_http_client(identity).expect("Failed to create HTTP client");
 
-    std::thread::spawn(|| {
-        // Initialize the UI
-        ui::init(config, client);
+    std::thread::spawn(move || {
+        // Create tokio async runtime
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Failed building tokio runtime");
+
+        // Spawn the updating task
+        runtime.spawn(update::update(client.clone()));
+
+        if let Err(e) = Hudhook::builder()
+            .with::<ImguiDx9Hooks>(OverlayRenderLoop::new(runtime, config, client))
+            .with_hmodule(hudhook::windows::Win32::Foundation::HINSTANCE(hmodule))
+            .build()
+            .apply()
+        {
+            error!("Couldn't apply hooks: {e:?}");
+        }
     });
+
+    // std::thread::spawn(|| {
+    //     // Initialize the UI
+    //     ui::init(config, client);
+    // });
 }
 
 /// Handles the plugin being detached from the game, this handles
@@ -99,10 +123,10 @@ fn load_identity() -> Option<Identity> {
 /// Windows DLL entrypoint for the plugin
 #[no_mangle]
 #[allow(non_snake_case)]
-extern "stdcall" fn DllMain(_hmodule: isize, reason: u32, _: *mut ()) -> bool {
+extern "stdcall" fn DllMain(hmodule: isize, reason: u32, _: *mut ()) -> bool {
     match reason {
         // Handle attaching
-        DLL_PROCESS_ATTACH => attach(),
+        DLL_PROCESS_ATTACH => attach(hmodule),
         // Handle detaching
         DLL_PROCESS_DETACH => detach(),
         _ => {}
