@@ -80,3 +80,12 @@ pub struct FSFXOnlineMOTDInfo {
     pub offer_id: c_int,
     pub ty: c_uchar,
 }
+
+#[repr(C, packed(4))]
+pub struct USFXGUIMovie {}
+
+impl USFXGUIMovie {
+    define_method!(set_mouse_visible, 50529, visible: bool);
+    define_method!(set_input_enabled, 50505, enabled: bool);
+    define_method!(set_game_mode, 50558, enable: bool, game_mode: u8);
+}

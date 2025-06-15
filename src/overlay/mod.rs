@@ -1,6 +1,14 @@
-use std::{sync::Arc, time::Duration};
-
-use hudhook::{imgui::StyleColor, *};
+use crate::{
+    config::{write_config_file, ClientConfig},
+    servers::start_all_servers,
+};
+use hudhook::{
+    imgui::{self, Image, StyleColor},
+    windows::Win32::UI::WindowsAndMessaging::SetCursor,
+    ImguiRenderLoop, MessageFilter,
+};
+use image::{EncodableLayout, ImageReader, RgbaImage};
+use imgui::TextureId;
 use parking_lot::Mutex;
 use pocket_relay_client_shared::{
     api::{lookup_server, LookupData},
@@ -8,30 +16,57 @@ use pocket_relay_client_shared::{
     reqwest::Client,
     servers::{has_server_tasks, stop_server_tasks},
 };
-use tokio::{runtime::Runtime, task::AbortHandle};
-
-use crate::{
-    config::{write_config_file, ClientConfig},
-    servers::start_all_servers,
+use std::{io::Cursor, sync::Arc};
+use tokio::{
+    runtime::Runtime,
+    sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+    task::AbortHandle,
 };
+
+pub enum GameEventMessage {
+    GameStartupComplete,
+
+    UpdateConnectionState(ConnectionState),
+}
+
+pub static mut GAME_EVENT_SENDER: Option<UnboundedSender<GameEventMessage>> = None;
 
 pub struct OverlayRenderLoop {
     screen: OverlayScreen,
 
     initial_startup_screen: InitialStartupScreen,
 
-    connection_state: Arc<Mutex<ConnectionState>>,
+    connection_state: ConnectionState,
 
     /// Http client for sending requests
     http_client: Client,
 
     runtime: Runtime,
+
+    logo_image: Option<RgbaImage>,
+    logo_image_id: Option<TextureId>,
+
+    messages_rx: UnboundedReceiver<GameEventMessage>,
 }
 
 impl OverlayRenderLoop {
     pub fn new(runtime: Runtime, config: Option<ClientConfig>, http_client: Client) -> Self {
+        let logo_image = ImageReader::with_format(
+            Cursor::new(include_bytes!("../../assets/logo-dark.png")),
+            image::ImageFormat::Png,
+        )
+        .decode()
+        .expect("failed to decode logo image")
+        .into_rgba8();
+
+        let (tx, messages_rx) = unbounded_channel();
+
+        unsafe {
+            GAME_EVENT_SENDER = Some(tx);
+        };
+
         Self {
-            screen: OverlayScreen::InitialStartup,
+            screen: OverlayScreen::PreStartup,
             initial_startup_screen: InitialStartupScreen {
                 remember_url: config.is_some(),
                 target_url: config.map(|value| value.connection_url).unwrap_or_default(),
@@ -40,26 +75,103 @@ impl OverlayRenderLoop {
             connection_state: Default::default(),
             http_client,
             runtime,
+            logo_image: Some(logo_image),
+            logo_image_id: None,
+            messages_rx,
         }
     }
 }
 
+pub static IS_IN_BLOCKING_UI: Mutex<bool> = Mutex::new(false);
+
+impl OverlayRenderLoop {
+    fn set_screen(&mut self, screen: OverlayScreen) {
+        {
+            *IS_IN_BLOCKING_UI.lock() = matches!(
+                screen,
+                OverlayScreen::GameOverlay | OverlayScreen::InitialStartup
+            );
+        }
+
+        self.screen = screen;
+    }
+}
+
 impl ImguiRenderLoop for OverlayRenderLoop {
+    fn initialize<'a>(
+        &'a mut self,
+        _ctx: &mut imgui::Context,
+        render_context: &'a mut dyn hudhook::RenderContext,
+    ) {
+        // Load the logo image
+        if let Some(logo_image) = self.logo_image.take() {
+            if let Ok(logo_image_id) = render_context.load_texture(
+                logo_image.as_bytes(),
+                logo_image.width(),
+                logo_image.height(),
+            ) {
+                self.logo_image_id = Some(logo_image_id);
+            }
+        }
+    }
+
+    fn before_render<'a>(
+        &'a mut self,
+        ctx: &mut imgui::Context,
+        _render_context: &'a mut dyn hudhook::RenderContext,
+    ) {
+        let io = ctx.io_mut();
+
+        match &self.screen {
+            OverlayScreen::InitialStartup | OverlayScreen::GameOverlay => {
+                io.mouse_draw_cursor = true;
+            }
+
+            _ => {
+                io.mouse_draw_cursor = false;
+            }
+        }
+    }
+
     fn render(&mut self, ui: &mut imgui::Ui) {
+        // Get messages from other threads for state updates
+        while let Ok(msg) = self.messages_rx.try_recv() {
+            match msg {
+                GameEventMessage::GameStartupComplete => {
+                    if matches!(self.screen, OverlayScreen::PreStartup) {
+                        self.set_screen(OverlayScreen::InitialStartup);
+                    }
+                }
+
+                GameEventMessage::UpdateConnectionState(state) => {
+                    self.connection_state = state;
+                }
+            }
+        }
+
+        // We are connected move onto the next screen
+        if matches!(self.connection_state, ConnectionState::Connected(_))
+            && matches!(self.screen, OverlayScreen::InitialStartup)
+        {
+            self.set_screen(OverlayScreen::Game);
+        }
+
         match self.screen {
+            OverlayScreen::PreStartup => {}
             OverlayScreen::InitialStartup => render_startup_screen(self, ui),
             OverlayScreen::Game => {
                 let io = ui.io();
 
                 if io.key_ctrl && io.key_shift && io.keys_down[imgui::Key::P as usize] {
-                    self.screen = OverlayScreen::GameOverlay;
+                    self.set_screen(OverlayScreen::GameOverlay);
                 }
             }
             OverlayScreen::GameOverlay => {
                 let io = ui.io();
 
+                // Escape to close overlay
                 if io.keys_down[imgui::Key::Escape as usize] {
-                    self.screen = OverlayScreen::Game;
+                    self.set_screen(OverlayScreen::Game);
                 }
 
                 render_game_overlay(self, ui)
@@ -71,11 +183,14 @@ impl ImguiRenderLoop for OverlayRenderLoop {
         let mut filter = MessageFilter::empty();
 
         match &self.screen {
+            OverlayScreen::PreStartup => {}
             OverlayScreen::InitialStartup | OverlayScreen::GameOverlay => {
+                // When the mouse is wanted (Overlay is present), steal all input
+                // prevent moving the player around while the overlay is open
                 if io.want_capture_mouse {
-                    filter |= MessageFilter::InputMouse;
-                    filter |= MessageFilter::InputKeyboard;
+                    return MessageFilter::InputAll;
                 }
+
                 if io.want_capture_keyboard {
                     filter |= MessageFilter::InputKeyboard;
                 }
@@ -89,6 +204,9 @@ impl ImguiRenderLoop for OverlayRenderLoop {
 
 #[derive(Clone, Copy)]
 pub enum OverlayScreen {
+    /// Game has not hit the splash screen yet, don't show UI yet
+    PreStartup,
+
     /// Game has just started, waiting for the user to decide whether
     /// they want to connect or not
     InitialStartup,
@@ -124,15 +242,11 @@ pub enum ConnectionState {
 fn overlay_window(ui: &mut imgui::Ui, display_size: [f32; 2]) {
     ui.window("##background_overlay")
         .no_decoration()
-        .title_bar(false)
         .movable(false)
-        .resizable(false)
-        .collapsible(false)
         .bring_to_front_on_focus(false)
-        .bg_alpha(0.7)
+        .bg_alpha(0.9)
         .position([0.0, 0.0], imgui::Condition::Always)
         .size(display_size, imgui::Condition::Always)
-        .scroll_bar(false)
         .scrollable(false)
         .build(|| {});
 }
@@ -145,25 +259,13 @@ pub fn render_game_overlay(parent: &mut OverlayRenderLoop, ui: &mut imgui::Ui) {
         .resizable(false)
         .size([450.0, 350.0], imgui::Condition::Always)
         .build(|| {
-            let is_connected;
-            let allowed_connect;
-
-            {
-                let state = &*parent.connection_state.lock();
-                allowed_connect = !matches!(state, ConnectionState::Connecting);
-                is_connected = matches!(state, ConnectionState::Connected(_));
-                status_text(ui, state);
-            }
+            let is_connected = matches!(parent.connection_state, ConnectionState::Connected(_));
+            status_text(ui, &parent.connection_state);
 
             if is_connected {
                 let disconnect_pressed = ui.button("Disconnect");
                 if disconnect_pressed {
                     on_click_disconnect(parent);
-                }
-            } else {
-                let connect_pressed = connect_button(ui, allowed_connect);
-                if connect_pressed {
-                    on_click_connect(parent);
                 }
             }
         });
@@ -191,6 +293,16 @@ pub fn render_startup_screen(parent: &mut OverlayRenderLoop, ui: &mut imgui::Ui)
         .collapsible(false);
 
     if let Some(_window_token) = window.begin() {
+        // Render logo
+        if let Some(logo_image_id) = parent.logo_image_id {
+            let logo_width = 345.0 * 0.4;
+            let logo_height = 135.0 * 0.4;
+
+            ui.set_cursor_pos([(window_size[0] - logo_width) * 0.5, ui.cursor_pos()[1]]);
+
+            Image::new(logo_image_id, [logo_width, logo_height]).build(ui);
+        }
+
         ui.text("Pocket Relay client");
         ui.text("Please put the server Connection URL below");
 
@@ -205,13 +317,8 @@ pub fn render_startup_screen(parent: &mut OverlayRenderLoop, ui: &mut imgui::Ui)
 
         ui.text_wrapped("If you don't want to connect to a Pocket Relay server press 'Cancel'");
 
-        let allowed_connect;
-
-        {
-            let state = &*parent.connection_state.lock();
-            allowed_connect = !matches!(state, ConnectionState::Connecting);
-            status_text(ui, state);
-        };
+        let allowed_connect = !matches!(parent.connection_state, ConnectionState::Connecting);
+        status_text(ui, &parent.connection_state);
 
         let connect_pressed = connect_button(ui, allowed_connect);
 
@@ -283,14 +390,11 @@ fn on_click_connect(parent: &mut OverlayRenderLoop) {
         abort_handle.abort();
     }
 
-    let state = parent.connection_state.clone();
     let url = parent.initial_startup_screen.target_url.clone();
     let http_client = parent.http_client.clone();
     let remember = parent.initial_startup_screen.remember_url;
 
-    {
-        *state.lock() = ConnectionState::Connecting;
-    }
+    parent.connection_state = ConnectionState::Connecting;
 
     // Run lookup task
     let abort_handle = parent
@@ -298,7 +402,6 @@ fn on_click_connect(parent: &mut OverlayRenderLoop) {
         .spawn(async move {
             let result = lookup_server(http_client.clone(), url).await;
 
-            tokio::time::sleep(Duration::from_secs(5)).await;
             match result {
                 Ok(mut lookup) => {
                     let ctx = Arc::new(ClientContext {
@@ -317,12 +420,18 @@ fn on_click_connect(parent: &mut OverlayRenderLoop) {
                         write_config_file(ClientConfig { connection_url });
                     }
 
-                    {
-                        *state.lock() = ConnectionState::Connected(lookup.clone());
+                    if let Some(sender) = unsafe { &GAME_EVENT_SENDER } {
+                        _ = sender.send(GameEventMessage::UpdateConnectionState(
+                            ConnectionState::Connected(lookup),
+                        ));
                     }
                 }
-                Err(value) => {
-                    *state.lock() = ConnectionState::Error(value.to_string());
+                Err(error) => {
+                    if let Some(sender) = unsafe { &GAME_EVENT_SENDER } {
+                        _ = sender.send(GameEventMessage::UpdateConnectionState(
+                            ConnectionState::Error(error.to_string()),
+                        ));
+                    }
                 }
             }
         })
@@ -342,7 +451,7 @@ fn on_click_disconnect(parent: &mut OverlayRenderLoop) {
         stop_server_tasks();
     }
 
-    *parent.connection_state.lock() = ConnectionState::Initial;
+    parent.connection_state = ConnectionState::Initial;
 }
 
 pub struct GameScreen;

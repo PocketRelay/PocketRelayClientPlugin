@@ -2,9 +2,10 @@ use super::mem::use_memory;
 use crate::{
     game::{
         core::{FString, UFunction, UObject, UObjectExt},
-        sfxgame::{FSFXOnlineMOTDInfo, USFXOnlineComponentUI},
+        sfxgame::{FSFXOnlineMOTDInfo, USFXGUIMovie, USFXOnlineComponentUI},
     },
     hooks::mem::find_pattern,
+    overlay::{GameEventMessage, GAME_EVENT_SENDER, IS_IN_BLOCKING_UI},
 };
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
@@ -288,6 +289,36 @@ pub unsafe extern "thiscall" fn fake_process_event(
             if process_on_display_notification(this, params) {
                 return;
             }
+        }
+    }
+
+    // Hook the splash screen initialization
+    if name.contains("Function SFXGame.SFXGUI_SplashScreen.Initialize") {
+        if let Some(sender) = &GAME_EVENT_SENDER {
+            _ = sender.send(GameEventMessage::GameStartupComplete);
+        }
+    }
+
+    if name.contains("Function SFXGame.SFXGUIMovie.Update") {
+        let this = object.cast::<USFXGUIMovie>().as_mut();
+        if let Some(this) = this {
+            let blocking = { *IS_IN_BLOCKING_UI.lock() };
+            if blocking {
+                this.set_input_enabled(false);
+                this.set_mouse_visible(true);
+                this.set_game_mode(true, 9);
+            } else {
+                this.set_input_enabled(true);
+                this.set_mouse_visible(false);
+                this.set_game_mode(false, 9);
+            }
+        }
+    }
+
+    if name.contains("HandleInputEvent") || name.contains("InputKey") {
+        let blocking = *IS_IN_BLOCKING_UI.lock();
+        if blocking {
+            return;
         }
     }
 

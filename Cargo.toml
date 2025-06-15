@@ -35,6 +35,8 @@ hudhook = { version = "0.8.1", default-features = false, features = [
     "dx9",
 ], path = "./hudhook" }
 parking_lot = "0.12.4"
+image = { version = "0.25.6", default-features = false, features = ["png"] }
+once_cell = "1.21.3"
 
 [dependencies.windows-sys]
 version = "0.52"
