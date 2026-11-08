@@ -11,6 +11,9 @@ pub const CONFIG_FILE_NAME: &str = "pocket-relay-client.json";
 pub struct ClientConfig {
     /// The saved connection URL to use
     pub connection_url: String,
+    /// Whether to automatically connect to the saved URL on startup
+    #[serde(default)]
+    pub auto_connect: bool,
 }
 
 /// Provides a [`PathBuf`] to the configuration file
