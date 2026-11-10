@@ -85,22 +85,22 @@ pub struct App {
 
     /// Server status dot
     #[nwg_control(icon: Some(&data.dot_red))]
-    #[nwg_layout_item(layout: grid, col: 0, row: 3, col_span: 1)]
+    #[nwg_layout_item(layout: grid, col: 0, row: 3, col_span: 2)]
     server_dot: ImageFrame,
 
     /// Connection state label
-    #[nwg_control(text: "Not connected")]
-    #[nwg_layout_item(layout: grid, col: 1, row: 3, col_span: 23)]
+    #[nwg_control(text: "Server: Not connected")]
+    #[nwg_layout_item(layout: grid, col: 2, row: 3, col_span: 22)]
     connection_label: Label,
 
     /// Tunnel status dot
     #[nwg_control(icon: Some(&data.dot_red))]
-    #[nwg_layout_item(layout: grid, col: 0, row: 4, col_span: 1)]
+    #[nwg_layout_item(layout: grid, col: 0, row: 4, col_span: 2)]
     tunnel_dot: ImageFrame,
 
     /// Tunnel state label (empty when the server has no tunneling)
-    #[nwg_control(text: "")]
-    #[nwg_layout_item(layout: grid, col: 1, row: 4, col_span: 23)]
+    #[nwg_control(text: "Tunnel: Not available")]
+    #[nwg_layout_item(layout: grid, col: 2, row: 4, col_span: 22)]
     tunnel_label: Label,
 
     /// Label about connecting
@@ -141,14 +141,14 @@ impl App {
         if has_server_tasks() {
             stop_server_tasks();
             reset_tunnel_state();
-            self.connection_label.set_text("Not connected");
+            self.connection_label.set_text("Server: Not connected");
             self.server_dot.set_icon(Some(&self.dot_red));
             self.update_tunnel_status();
             self.set_button.set_text("Connect");
             return;
         }
 
-        self.connection_label.set_text("Connecting...");
+        self.connection_label.set_text("Server: Connecting...");
         let target = self.target_url_input.text().to_string();
         let sender = self.connect_notice.sender();
         let http_client = self.http_client.clone();
@@ -169,22 +169,13 @@ impl App {
 
     /// Updates the tunnel dot and label from the current tunnel state
     fn update_tunnel_status(&self) {
-        match tunnel_state() {
-            TunnelState::Off => {
-                self.tunnel_dot.set_visible(false);
-                self.tunnel_label.set_text("");
-            }
-            TunnelState::Active => {
-                self.tunnel_dot.set_icon(Some(&self.dot_green));
-                self.tunnel_dot.set_visible(true);
-                self.tunnel_label.set_text("Tunnel connected");
-            }
-            TunnelState::Failed => {
-                self.tunnel_dot.set_icon(Some(&self.dot_red));
-                self.tunnel_dot.set_visible(true);
-                self.tunnel_label.set_text("Tunnel disconnected");
-            }
-        }
+        let (icon, text) = match tunnel_state() {
+            TunnelState::Active => (&self.dot_green, "Tunnel: Connected"),
+            TunnelState::Failed => (&self.dot_red, "Tunnel: Disconnected"),
+            TunnelState::Off => (&self.dot_red, "Tunnel: Not available"),
+        };
+        self.tunnel_dot.set_icon(Some(icon));
+        self.tunnel_label.set_text(text);
     }
 
     /// Handles the connection complete notice updating the UI
@@ -205,7 +196,7 @@ impl App {
         let mut lookup = match result {
             Ok(value) => value,
             Err(err) => {
-                self.connection_label.set_text("Failed to connect");
+                self.connection_label.set_text("Server: Failed to connect");
                 error_message("Failed to connect", &err.to_string());
                 return;
             }
@@ -234,7 +225,7 @@ impl App {
         }
 
         let text = format!(
-            "Connected: {} {} version v{}",
+            "Server: Connected - {} {} version v{}",
             lookup.url.scheme(),
             lookup.url.authority(),
             lookup.version
@@ -284,7 +275,6 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
         .map(|value| (value.connection_url, true, value.auto_connect))
         .unwrap_or_default();
 
-    app.tunnel_dot.set_visible(false);
     app.target_url_input.set_text(&target);
 
     if remember {
