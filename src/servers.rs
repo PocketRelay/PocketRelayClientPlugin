@@ -55,7 +55,7 @@ async fn tunnel_state_worker(
     event_rx: mpsc::UnboundedReceiver<TunnelEvent>,
 ) {
     spawn_server_task(async move {
-        while let Some(event) = event_rx.next() {
+        while let Some(event) = event_rx.recv().await {
             tunnel_state_ref.set_state(TunnelState::from(event));
         }
     });
@@ -68,7 +68,7 @@ async fn start_tunnel_server(
     ctx: Arc<ClientContext>,
     tunnel_state_ref: TunnelStateRef,
 ) -> std::io::Result<()> {
-    let (event_tx, event_rx) = mpsc::unbounded();
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
     tunnel_state_worker(tunnel_state_ref, event_rx);
 
     // Spawn tunnel server
