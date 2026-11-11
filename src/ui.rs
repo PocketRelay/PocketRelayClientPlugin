@@ -193,7 +193,7 @@ impl App {
     /// Updates the tunnel dot and label from the current tunnel state
     fn update_tunnel_status(&self) {
         let (icon, text) = match self.get_tunnel_state() {
-            TunnelState::NotConnected => (&self.dot_yellow, "Tunnel: Not Connected"),
+            TunnelState::NotConnected => (&self.dot_red, "Tunnel: Not Connected"),
             TunnelState::Creating => (&self.dot_yellow, "Tunnel: Connecting"),
             TunnelState::Handshaking => (&self.dot_yellow, "Tunnel: Connecting (UDP)"),
             TunnelState::RetryConnect => (&self.dot_yellow, "Tunnel: Retrying connection"),
