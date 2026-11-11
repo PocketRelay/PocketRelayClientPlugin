@@ -16,6 +16,7 @@ pub mod game;
 pub mod hooks;
 pub mod servers;
 pub mod threads;
+pub mod tunnel_state;
 pub mod ui;
 pub mod update;
 

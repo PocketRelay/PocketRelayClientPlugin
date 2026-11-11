@@ -7,21 +7,29 @@ use crate::{
     },
     servers::start_all_servers,
     threads::resume_all_threads,
+    tunnel_state::{TunnelState, TunnelStateRef},
     update,
 };
 use futures::FutureExt;
 use native_windows_derive::NwgUi;
 use native_windows_gui::{init as nwg_init, *};
+use parking_lot::Mutex;
 use pocket_relay_client_shared::ctx::ClientContext;
 use std::{cell::RefCell, sync::Arc};
 use tokio::task::JoinHandle;
 
 /// Size of the created window
-pub const WINDOW_SIZE: (i32, i32) = (500, 225);
+pub const WINDOW_SIZE: (i32, i32) = (500, 260);
 /// Title used for the created window
 pub const WINDOW_TITLE: &str = concat!("Pocket Relay Client v", env!("CARGO_PKG_VERSION"));
 /// Window icon bytes
 pub const ICON_BYTES: &[u8] = include_bytes!("resources/icon.ico");
+/// Green status dot icon bytes
+pub const DOT_GREEN_BYTES: &[u8] = include_bytes!("resources/dot_green.ico");
+/// Yellow status dot icon bytes
+pub const DOT_YELLOW_BYTES: &[u8] = include_bytes!("resources/dot_yellow.ico");
+/// Red status dot icon bytes
+pub const DOT_RED_BYTES: &[u8] = include_bytes!("resources/dot_red.ico");
 
 /// Native GUI app
 #[derive(NwgUi, Default)]
@@ -41,40 +49,79 @@ pub struct App {
     #[nwg_events(OnWindowClose: [stop_thread_dispatch()], OnKeyEnter: [App::handle_set])]
     window: Window,
 
+    /// Green status dot icon
+    #[nwg_resource(source_bin: Some(DOT_GREEN_BYTES))]
+    dot_green: Icon,
+
+    /// Yellow status dot icon
+    #[nwg_resource(source_bin: Some(DOT_YELLOW_BYTES))]
+    dot_yellow: Icon,
+
+    /// Red status dot icon
+    #[nwg_resource(source_bin: Some(DOT_RED_BYTES))]
+    dot_red: Icon,
+
     /// Grid layout for all the content
-    #[nwg_layout(parent: window)]
+    #[nwg_layout(parent: window, max_column: Some(24))]
     grid: GridLayout,
 
     /// Label for the connection URL input
     #[nwg_control(text: "Please put the server Connection URL below and press 'Set'")]
-    #[nwg_layout_item(layout: grid, col: 0, row: 0, col_span: 2)]
+    #[nwg_layout_item(layout: grid, col: 0, row: 0, col_span: 24)]
     target_url_label: Label,
 
     /// Input for the connection URL
     #[nwg_control(focus: true)]
-    #[nwg_layout_item(layout: grid, col: 0, row: 1, col_span: 2)]
+    #[nwg_layout_item(layout: grid, col: 0, row: 1, col_span: 16)]
     target_url_input: TextInput,
 
     /// Button for connecting
     #[nwg_control(text: "Connect")]
-    #[nwg_layout_item(layout: grid, col: 2, row: 1, col_span: 1)]
+    #[nwg_layout_item(layout: grid, col: 16, row: 1, col_span: 8)]
     #[nwg_events(OnButtonClick: [App::handle_set])]
     set_button: Button,
 
     /// Checkbox for whether to remember the connection URL
     #[nwg_control(text: "Save connection URL")]
-    #[nwg_layout_item(layout: grid, col: 0, row: 2, col_span: 3)]
+    #[nwg_layout_item(layout: grid, col: 0, row: 2, col_span: 12)]
     remember_checkbox: CheckBox,
 
+    /// Checkbox for whether to automatically connect on startup
+    #[nwg_control(text: "Auto connect on startup")]
+    #[nwg_layout_item(layout: grid, col: 12, row: 2, col_span: 12)]
+    auto_connect_checkbox: CheckBox,
+
+    /// Server status dot
+    #[nwg_control(icon: Some(&data.dot_red))]
+    #[nwg_layout_item(layout: grid, col: 0, row: 3, col_span: 2)]
+    server_dot: ImageFrame,
+
     /// Connection state label
-    #[nwg_control(text: "Not connected")]
-    #[nwg_layout_item(layout: grid, col: 0, row: 3, col_span: 3)]
+    #[nwg_control(text: "Server: Not connected")]
+    #[nwg_layout_item(layout: grid, col: 2, row: 3, col_span: 22)]
     connection_label: Label,
 
+    /// Tunnel status dot
+    #[nwg_control(icon: Some(&data.dot_red))]
+    #[nwg_layout_item(layout: grid, col: 0, row: 4, col_span: 2)]
+    tunnel_dot: ImageFrame,
+
+    /// Tunnel state label (empty when the server has no tunneling)
+    #[nwg_control(text: "Tunnel: Not available")]
+    #[nwg_layout_item(layout: grid, col: 2, row: 4, col_span: 22)]
+    tunnel_label: Label,
+
     /// Label about connecting
-    #[nwg_control(text: "Your game will start after you connect. If you don't want to connect to\n a Pocket Relay server close this window and you will connect to the\n official servers")]
-    #[nwg_layout_item(layout: grid, col: 0, row: 4, col_span: 3, row_span: 3)]
+    #[nwg_control(text: "Your game will start after you connect. If you don't want to connect to
+ a Pocket Relay server close this window and you will connect to the
+ official servers")]
+    #[nwg_layout_item(layout: grid, col: 0, row: 5, col_span: 24, row_span: 3)]
     connect_label: Label,
+
+    /// Notice for tunnel state changes
+    #[nwg_control]
+    #[nwg_events(OnNotice: [App::handle_tunnel_notice])]
+    tunnel_notice: Notice,
 
     /// Notice for connection completion
     #[nwg_control]
@@ -86,6 +133,9 @@ pub struct App {
 
     /// Http client for sending requests
     http_client: Client,
+
+    /// The current shared tunnel state
+    tunnel_state: Arc<Mutex<TunnelState>>,
 }
 
 impl App {
@@ -101,12 +151,17 @@ impl App {
         // Handle disconnecting
         if has_server_tasks() {
             stop_server_tasks();
-            self.connection_label.set_text("Not connected");
+
+            self.reset_tunnel_state();
+            self.update_tunnel_status();
+
+            self.connection_label.set_text("Server: Not connected");
+            self.server_dot.set_icon(Some(&self.dot_red));
             self.set_button.set_text("Connect");
             return;
         }
 
-        self.connection_label.set_text("Connecting...");
+        self.connection_label.set_text("Server: Connecting...");
         let target = self.target_url_input.text().to_string();
         let sender = self.connect_notice.sender();
         let http_client = self.http_client.clone();
@@ -118,6 +173,38 @@ impl App {
         });
 
         *self.connect_task.borrow_mut() = Some(task);
+    }
+
+    /// Handles the tunnel task changing state
+    fn handle_tunnel_notice(&self) {
+        self.update_tunnel_status();
+    }
+
+    /// gets the current tunnel state
+    fn get_tunnel_state(&self) -> TunnelState {
+        *self.tunnel_state.lock()
+    }
+
+    /// Resets the tunnel state to its initial value
+    fn reset_tunnel_state(&self) {
+        *self.tunnel_state.lock() = TunnelState::default();
+    }
+
+    /// Updates the tunnel dot and label from the current tunnel state
+    fn update_tunnel_status(&self) {
+        let (icon, text) = match self.get_tunnel_state() {
+            TunnelState::NotConnected => (&self.dot_red, "Tunnel: Not Connected"),
+            TunnelState::Creating => (&self.dot_yellow, "Tunnel: Connecting"),
+            TunnelState::Handshaking => (&self.dot_yellow, "Tunnel: Connecting (UDP)"),
+            TunnelState::RetryConnect => (&self.dot_yellow, "Tunnel: Retrying connection"),
+            //
+            TunnelState::Connected => (&self.dot_green, "Tunnel: Connected"),
+            //
+            TunnelState::Error => (&self.dot_red, "Tunnel: Disconnected"),
+            TunnelState::Unavailable => (&self.dot_red, "Tunnel: Not available"),
+        };
+        self.tunnel_dot.set_icon(Some(icon));
+        self.tunnel_label.set_text(text);
     }
 
     /// Handles the connection complete notice updating the UI
@@ -138,7 +225,7 @@ impl App {
         let mut lookup = match result {
             Ok(value) => value,
             Err(err) => {
-                self.connection_label.set_text("Failed to connect");
+                self.connection_label.set_text("Server: Failed to connect");
                 error_message("Failed to connect", &err.to_string());
                 return;
             }
@@ -151,24 +238,34 @@ impl App {
             tunnel_port: lookup.tunnel_port,
         });
 
+        // Initialize a tunnel state
+        let tunnel_state =
+            TunnelStateRef::new(self.tunnel_state.clone(), self.tunnel_notice.sender());
+
         // Start the servers
-        start_all_servers(ctx);
+        start_all_servers(ctx, tunnel_state);
 
         let remember = self.remember_checkbox.check_state() == CheckBoxState::Checked;
+        let auto_connect = self.auto_connect_checkbox.check_state() == CheckBoxState::Checked;
 
-        // Save the connection URL
-        if remember {
+        // Save the connection URL (auto connect requires a saved URL)
+        if remember || auto_connect {
             let connection_url = lookup.url.to_string();
-            write_config_file(ClientConfig { connection_url });
+            write_config_file(ClientConfig {
+                connection_url,
+                auto_connect,
+            });
         }
 
         let text = format!(
-            "Connected: {} {} version v{}",
+            "Server: Connected - {} {} version v{}",
             lookup.url.scheme(),
             lookup.url.authority(),
             lookup.version
         );
         self.connection_label.set_text(&text);
+        self.server_dot.set_icon(Some(&self.dot_green));
+        self.update_tunnel_status();
         self.set_button.set_text("Disconnect");
 
         // Resume game threads
@@ -207,8 +304,8 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
     })
     .expect("Failed to build native UI");
 
-    let (target, remember) = config
-        .map(|value| (value.connection_url, true))
+    let (target, remember, auto_connect) = config
+        .map(|value| (value.connection_url, true, value.auto_connect))
         .unwrap_or_default();
 
     app.target_url_input.set_text(&target);
@@ -216,6 +313,16 @@ pub fn init(config: Option<ClientConfig>, client: Client) {
     if remember {
         app.remember_checkbox
             .set_check_state(CheckBoxState::Checked);
+    }
+
+    if auto_connect {
+        app.auto_connect_checkbox
+            .set_check_state(CheckBoxState::Checked);
+
+        // Connect right away to the saved server
+        if !target.is_empty() {
+            app.handle_set();
+        }
     }
 
     dispatch_thread_events();

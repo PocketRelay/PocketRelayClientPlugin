@@ -1,15 +1,19 @@
 use crate::{
     core::{ctx::ClientContext, servers::*},
+    tunnel_state::{TunnelState, TunnelStateRef},
     ui::error_message,
 };
 use log::error;
+use pocket_relay_client_shared::events::TunnelEvent;
 use std::{future::Future, sync::Arc};
+use tokio::sync::mpsc;
 
 /// Starts all the servers in their own tasks
 ///
 /// ## Arguments
-/// * `ctx` - The client context
-pub fn start_all_servers(ctx: Arc<ClientContext>) {
+/// * `ctx`           - The client context
+/// * `tunnel_state_ref` - Reference to update the tunnel state
+pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state_ref: TunnelStateRef) {
     // Stop existing servers and tasks if they are running
     stop_server_tasks();
 
@@ -30,23 +34,54 @@ pub fn start_all_servers(ctx: Arc<ClientContext>) {
     run_server(qos, "qos");
 
     // Spawn tunnel server
-    let tunnel = start_tunnel_server(ctx.clone());
-    run_server(tunnel, "tunnel");
+    // The tunnel is only used when the server provides a UDP tunnel port or
+    // an association token (required by the HTTP tunnel)
+    if ctx.tunnel_port.is_some() || ctx.association.is_some() {
+        let tunnel = start_tunnel_server(ctx.clone(), tunnel_state_ref);
+        run_server(tunnel, "tunnel");
+    } else {
+        tunnel_state_ref.set_state(TunnelState::Unavailable);
+    }
 
     // Spawn telemetry server
     let telemetry = telemetry::start_telemetry_server(ctx);
     run_server(telemetry, "telemetry");
 }
 
+/// Background worker to process tunnel events and update the
+/// tunnel state accordingly
+fn tunnel_state_worker(
+    tunnel_state_ref: TunnelStateRef,
+    mut event_rx: mpsc::UnboundedReceiver<TunnelEvent>,
+) {
+    spawn_server_task(async move {
+        while let Some(event) = event_rx.recv().await {
+            tunnel_state_ref.set_state(TunnelState::from(event));
+        }
+    });
+}
+
 /// Runs the tunnel server, if a tunnel port is available a UDP tunnel will be
 /// attempted, if that fails or a tunnel port is unavailable an HTTP tunnel
 /// will be attempted instead
-async fn start_tunnel_server(ctx: Arc<ClientContext>) -> std::io::Result<()> {
+async fn start_tunnel_server(
+    ctx: Arc<ClientContext>,
+    tunnel_state_ref: TunnelStateRef,
+) -> std::io::Result<()> {
+    let (event_tx, event_rx) = mpsc::unbounded_channel();
+    tunnel_state_worker(tunnel_state_ref, event_rx);
+
     // Spawn tunnel server
     match ctx.tunnel_port {
         // When UDP tunnel server port is available use the faster UDP tunnel server
         Some(tunnel_port) => {
-            let err = match udp_tunnel::start_udp_tunnel_server(ctx.clone(), tunnel_port).await {
+            let err = match udp_tunnel::start_udp_tunnel_server(
+                ctx.clone(),
+                tunnel_port,
+                event_tx.clone(),
+            )
+            .await
+            {
                 // Encountered error with UDP tunnel
                 Err(err) => err,
                 // Server exited normally
@@ -59,10 +94,10 @@ async fn start_tunnel_server(ctx: Arc<ClientContext>) -> std::io::Result<()> {
             );
 
             // Error while connecting UDP tunnel, fallback to HTTP upgrade tunnel
-            tunnel::start_tunnel_server(ctx).await
+            tunnel::start_tunnel_server(ctx, event_tx).await
         }
         // When unavailable fallback to the HTTP upgrade tunnel
-        None => tunnel::start_tunnel_server(ctx).await,
+        None => tunnel::start_tunnel_server(ctx, event_tx).await,
     }
 }
 
