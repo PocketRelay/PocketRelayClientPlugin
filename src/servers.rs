@@ -1,6 +1,6 @@
 use crate::{
     core::{ctx::ClientContext, servers::*},
-    tunnel_state::TunnelState,
+    tunnel_state::{TunnelState, TunnelStateRef},
     ui::error_message,
 };
 use log::error;
@@ -18,8 +18,8 @@ use std::{
 ///
 /// ## Arguments
 /// * `ctx`           - The client context
-/// * `tunnel_notice` - Sender used to wake the UI when the tunnel state changes
-pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state: TunnelState) {
+/// * `tunnel_state_ref` - Reference to update the tunnel state
+pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state_ref: TunnelStateRef) {
     // Stop existing servers and tasks if they are running
     stop_server_tasks();
 
@@ -43,10 +43,10 @@ pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state: TunnelState) {
     // The tunnel is only used when the server provides a UDP tunnel port or
     // an association token (required by the HTTP tunnel)
     if ctx.tunnel_port.is_some() || ctx.association.is_some() {
-        let tunnel = start_tunnel_server(ctx.clone(), tunnel_state);
+        let tunnel = start_tunnel_server(ctx.clone(), tunnel_state_ref);
         run_server(tunnel, "tunnel");
     } else {
-        tunnel_state.set_state(TunnelState::Unavailable);
+        tunnel_state_ref.set_state(TunnelState::Unavailable);
     }
 
     // Spawn telemetry server
@@ -57,12 +57,12 @@ pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state: TunnelState) {
 /// Background worker to process tunnel events and update the
 /// tunnel state accordingly
 async fn tunnel_state_worker(
-    tunnel_state: TunnelState,
+    tunnel_state_ref: TunnelStateRef,
     event_rx: tokio::mpsc::UnboundedReceiver<TunnelEvent>,
 ) {
     spawn_server_task(async move {
         while let Some(event) = event_rx.next() {
-            tunnel_state.set_state(TunnelState::from(event));
+            tunnel_state_ref.set_state(TunnelState::from(event));
         }
     });
 }
@@ -72,10 +72,10 @@ async fn tunnel_state_worker(
 /// will be attempted instead
 async fn start_tunnel_server(
     ctx: Arc<ClientContext>,
-    tunnel_state: Arc<TunnelState>,
+    tunnel_state_ref: TunnelStateRef,
 ) -> std::io::Result<()> {
     let (event_tx, event_rx) = tokio::mpsc::unbounded();
-    tunnel_state_worker(tunnel_state, event_rx);
+    tunnel_state_worker(tunnel_state_ref, event_rx);
 
     // Spawn tunnel server
     match ctx.tunnel_port {

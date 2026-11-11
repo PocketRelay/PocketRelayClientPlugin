@@ -44,7 +44,7 @@ impl From<TunnelEvent> for TunnelState {
     }
 }
 
-pub struct TunnelState {
+pub struct TunnelStateRef {
     /// The shared tunnel state to update
     tunnel_state: Arc<Mutex<TunnelState>>,
 
@@ -53,7 +53,7 @@ pub struct TunnelState {
     notice_sender: NoticeSender,
 }
 
-impl TunnelState {
+impl TunnelStateRef {
     pub fn new(tunnel_state: Arc<Mutex<TunnelState>>, notice_sender: NoticeSender) -> Self {
         Self {
             tunnel_state,

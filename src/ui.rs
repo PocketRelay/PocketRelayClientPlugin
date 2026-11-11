@@ -7,7 +7,7 @@ use crate::{
     },
     servers::{reset_tunnel_state, start_all_servers, tunnel_state},
     threads::resume_all_threads,
-    tunnel_state::TunnelState,
+    tunnel_state::{TunnelState, TunnelStateRef},
     update,
 };
 use futures::FutureExt;
@@ -241,7 +241,8 @@ impl App {
         });
 
         // Initialize a tunnel state
-        let tunnel_state = TunnelState::new(self.tunnel_state.clone(), self.tunnel_notice.sender());
+        let tunnel_state =
+            TunnelStateRef::new(self.tunnel_state.clone(), self.tunnel_notice.sender());
 
         // Start the servers
         start_all_servers(ctx, tunnel_state);
