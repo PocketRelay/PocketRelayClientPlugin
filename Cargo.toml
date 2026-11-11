@@ -14,8 +14,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Shared backing library
-# pocket-relay-client-shared = { version = "^0.3" }
-pocket-relay-client-shared = { git = "https://github.com/PocketRelay/PocketRelayClientShared.git", version = "^0.3", rev = "eafa34d8dbbdf3bd3a23b84019d14d4839b6d618" }
+pocket-relay-client-shared = { version = "0.4" }
 
 # Logging
 env_logger = "0.10"

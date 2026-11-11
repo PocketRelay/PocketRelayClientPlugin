@@ -999,8 +999,9 @@ checksum = "df42e13c12958a16b3f7f4386b9ab1f3e7933914ecea48da7139435263a4172a"
 
 [[package]]
 name = "pocket-relay-client-shared"
-version = "0.3.0"
-source = "git+https://github.com/PocketRelay/PocketRelayClientShared.git?rev=eafa34d8dbbdf3bd3a23b84019d14d4839b6d618#eafa34d8dbbdf3bd3a23b84019d14d4839b6d618"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4a6b62244c672b0d6b356627abb24417bc0cd2d60a21bbd6d262fef724ed76d"
 dependencies = [
  "blaze-ssl-async",
  "bytes",
