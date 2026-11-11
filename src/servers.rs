@@ -50,7 +50,7 @@ pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state_ref: TunnelStateR
 
 /// Background worker to process tunnel events and update the
 /// tunnel state accordingly
-async fn tunnel_state_worker(
+fn tunnel_state_worker(
     tunnel_state_ref: TunnelStateRef,
     mut event_rx: mpsc::UnboundedReceiver<TunnelEvent>,
 ) {
