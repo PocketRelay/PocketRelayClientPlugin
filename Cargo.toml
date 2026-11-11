@@ -14,7 +14,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Shared backing library
-pocket-relay-client-shared = { version = "^0.3" }
+# pocket-relay-client-shared = { version = "^0.3" }
+pocket-relay-client-shared = { git = "https://github.com/PocketRelay/PocketRelayClientShared.git", version = "^0.3", rev = "eafa34d8dbbdf3bd3a23b84019d14d4839b6d618" }
 
 # Logging
 env_logger = "0.10"
@@ -30,22 +31,23 @@ native-windows-gui = { version = "1", features = ["notice"] }
 native-windows-derive = { version = "1" }
 
 futures = "0.3"
+parking_lot = "0.12.1"
 
 [dependencies.windows-sys]
 version = "0.52"
 features = [
-    # Foundational types
-    "Win32_Foundation",
-    # For DLL_PROCESS_ATTACH and DLL_PROCESS_DETACH constants
-    "Win32_System_SystemServices",
-    # Requried for virtual protecting memory
-    "Win32_System_Memory",
-    # Required for allocating consoles
-    "Win32_System_Console",
-    # Required for HOSTENT structure and gethostbyname function
-    "Win32_Networking_WinSock",
-    # APIs to suspend threads
-    "Win32_System_Diagnostics_ToolHelp",
+  # Foundational types
+  "Win32_Foundation",
+  # For DLL_PROCESS_ATTACH and DLL_PROCESS_DETACH constants
+  "Win32_System_SystemServices",
+  # Requried for virtual protecting memory
+  "Win32_System_Memory",
+  # Required for allocating consoles
+  "Win32_System_Console",
+  # Required for HOSTENT structure and gethostbyname function
+  "Win32_Networking_WinSock",
+  # APIs to suspend threads
+  "Win32_System_Diagnostics_ToolHelp",
 ]
 
 # Tokio async runtime

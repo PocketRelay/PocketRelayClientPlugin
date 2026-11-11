@@ -5,13 +5,15 @@ use crate::{
         reqwest::Client,
         servers::{has_server_tasks, stop_server_tasks},
     },
-    servers::{reset_tunnel_state, start_all_servers, tunnel_state, TunnelState},
+    servers::{reset_tunnel_state, start_all_servers, tunnel_state},
     threads::resume_all_threads,
+    tunnel_state::TunnelState,
     update,
 };
 use futures::FutureExt;
 use native_windows_derive::NwgUi;
 use native_windows_gui::{init as nwg_init, *};
+use parking_lot::Mutex;
 use pocket_relay_client_shared::ctx::ClientContext;
 use std::{cell::RefCell, sync::Arc};
 use tokio::task::JoinHandle;
@@ -24,6 +26,8 @@ pub const WINDOW_TITLE: &str = concat!("Pocket Relay Client v", env!("CARGO_PKG_
 pub const ICON_BYTES: &[u8] = include_bytes!("resources/icon.ico");
 /// Green status dot icon bytes
 pub const DOT_GREEN_BYTES: &[u8] = include_bytes!("resources/dot_green.ico");
+/// Yellow status dot icon bytes
+pub const DOT_YELLOW_BYTES: &[u8] = include_bytes!("resources/dot_yellow.ico");
 /// Red status dot icon bytes
 pub const DOT_RED_BYTES: &[u8] = include_bytes!("resources/dot_red.ico");
 
@@ -48,6 +52,10 @@ pub struct App {
     /// Green status dot icon
     #[nwg_resource(source_bin: Some(DOT_GREEN_BYTES))]
     dot_green: Icon,
+
+    /// Yellow status dot icon
+    #[nwg_resource(source_bin: Some(DOT_YELLOW_BYTES))]
+    dot_yellow: Icon,
 
     /// Red status dot icon
     #[nwg_resource(source_bin: Some(DOT_RED_BYTES))]
@@ -125,6 +133,9 @@ pub struct App {
 
     /// Http client for sending requests
     http_client: Client,
+
+    /// The current shared tunnel state
+    tunnel_state: Arc<Mutex<TunnelState>>,
 }
 
 impl App {
@@ -140,10 +151,12 @@ impl App {
         // Handle disconnecting
         if has_server_tasks() {
             stop_server_tasks();
-            reset_tunnel_state();
+
+            self.reset_tunnel_state();
+            self.update_tunnel_status();
+
             self.connection_label.set_text("Server: Not connected");
             self.server_dot.set_icon(Some(&self.dot_red));
-            self.update_tunnel_status();
             self.set_button.set_text("Connect");
             return;
         }
@@ -167,12 +180,30 @@ impl App {
         self.update_tunnel_status();
     }
 
+    /// gets the current tunnel state
+    fn get_tunnel_state(&self) -> TunnelState {
+        self.tunnel_state.lock()
+    }
+
+    /// Resets the tunnel state to its initial value
+    fn reset_tunnel_state(&self) {
+        *self.tunnel_state.lock() = TunnelState::default();
+    }
+
     /// Updates the tunnel dot and label from the current tunnel state
     fn update_tunnel_status(&self) {
-        let (icon, text) = match tunnel_state() {
-            TunnelState::Active => (&self.dot_green, "Tunnel: Connected"),
-            TunnelState::Failed => (&self.dot_red, "Tunnel: Disconnected"),
-            TunnelState::Off => (&self.dot_red, "Tunnel: Not available"),
+        let tunnel_state = self.get_tunnel_state();
+
+        let (icon, text) = match tunnel_state.get_state() {
+            TunnelState::NotConnected => (&self.dot_yellow, "Tunnel: Preparing"),
+            TunnelState::Creating => (&self.dot_yellow, "Tunnel: Connecting"),
+            TunnelState::Handshaking => (&self.dot_yellow, "Tunnel: Connecting (UDP)"),
+            TunnelState::RetryConnect => (&self.dot_yellow, "Tunnel: Retrying connection"),
+            //
+            TunnelState::Connected => (&self.dot_green, "Tunnel: Connected"),
+            //
+            TunnelState::Error => (&self.dot_red, "Tunnel: Disconnected"),
+            TunnelState::Unavailable => (&self.dot_red, "Tunnel: Not available"),
         };
         self.tunnel_dot.set_icon(Some(icon));
         self.tunnel_label.set_text(text);
@@ -209,8 +240,11 @@ impl App {
             tunnel_port: lookup.tunnel_port,
         });
 
+        // Initialize a tunnel state
+        let tunnel_state = TunnelState::new(self.tunnel_state.clone(), self.tunnel_notice.sender());
+
         // Start the servers
-        start_all_servers(ctx, self.tunnel_notice.sender());
+        start_all_servers(ctx, tunnel_state);
 
         let remember = self.remember_checkbox.check_state() == CheckBoxState::Checked;
         let auto_connect = self.auto_connect_checkbox.check_state() == CheckBoxState::Checked;

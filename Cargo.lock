@@ -603,9 +603,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.161"
+version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e9489c2807c139ffd9c1794f4af0ebe86a828db53ecdc7fea2111d0fed085d1"
+checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libm"
@@ -1000,8 +1000,7 @@ checksum = "df42e13c12958a16b3f7f4386b9ab1f3e7933914ecea48da7139435263a4172a"
 [[package]]
 name = "pocket-relay-client-shared"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "405330359f1cfa102cf21c337955181011be65608dd78fdeec08743e47f0fdb0"
+source = "git+https://github.com/PocketRelay/PocketRelayClientShared.git?rev=eafa34d8dbbdf3bd3a23b84019d14d4839b6d618#eafa34d8dbbdf3bd3a23b84019d14d4839b6d618"
 dependencies = [
  "blaze-ssl-async",
  "bytes",
@@ -1031,6 +1030,7 @@ dependencies = [
  "log-panics",
  "native-windows-derive",
  "native-windows-gui",
+ "parking_lot",
  "pocket-relay-client-shared",
  "serde",
  "serde_json",
@@ -1380,9 +1380,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.13.2"
+version = "1.16.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+checksum = "149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46"
 
 [[package]]
 name = "socket2"
