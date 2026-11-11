@@ -4,15 +4,9 @@ use crate::{
     ui::error_message,
 };
 use log::error;
-use native_windows_gui::NoticeSender;
 use pocket_relay_client_shared::events::TunnelEvent;
-use std::{
-    future::Future,
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        Arc,
-    },
-};
+use std::{future::Future, sync::Arc};
+use tokio::sync::mpsc;
 
 /// Starts all the servers in their own tasks
 ///
@@ -58,7 +52,7 @@ pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state_ref: TunnelStateR
 /// tunnel state accordingly
 async fn tunnel_state_worker(
     tunnel_state_ref: TunnelStateRef,
-    event_rx: tokio::mpsc::UnboundedReceiver<TunnelEvent>,
+    event_rx: mpsc::UnboundedReceiver<TunnelEvent>,
 ) {
     spawn_server_task(async move {
         while let Some(event) = event_rx.next() {
@@ -74,7 +68,7 @@ async fn start_tunnel_server(
     ctx: Arc<ClientContext>,
     tunnel_state_ref: TunnelStateRef,
 ) -> std::io::Result<()> {
-    let (event_tx, event_rx) = tokio::mpsc::unbounded();
+    let (event_tx, event_rx) = mpsc::unbounded();
     tunnel_state_worker(tunnel_state_ref, event_rx);
 
     // Spawn tunnel server

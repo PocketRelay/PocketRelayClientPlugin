@@ -5,7 +5,7 @@ use crate::{
         reqwest::Client,
         servers::{has_server_tasks, stop_server_tasks},
     },
-    servers::{reset_tunnel_state, start_all_servers, tunnel_state},
+    servers::start_all_servers,
     threads::resume_all_threads,
     tunnel_state::{TunnelState, TunnelStateRef},
     update,
@@ -182,7 +182,7 @@ impl App {
 
     /// gets the current tunnel state
     fn get_tunnel_state(&self) -> TunnelState {
-        self.tunnel_state.lock()
+        *self.tunnel_state.lock()
     }
 
     /// Resets the tunnel state to its initial value
@@ -192,9 +192,7 @@ impl App {
 
     /// Updates the tunnel dot and label from the current tunnel state
     fn update_tunnel_status(&self) {
-        let tunnel_state = self.get_tunnel_state();
-
-        let (icon, text) = match tunnel_state.get_state() {
+        let (icon, text) = match self.get_tunnel_state() {
             TunnelState::NotConnected => (&self.dot_yellow, "Tunnel: Preparing"),
             TunnelState::Creating => (&self.dot_yellow, "Tunnel: Connecting"),
             TunnelState::Handshaking => (&self.dot_yellow, "Tunnel: Connecting (UDP)"),

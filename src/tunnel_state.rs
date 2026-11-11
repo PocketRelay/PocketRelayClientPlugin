@@ -1,4 +1,5 @@
-use futures::stream::TryUnfold;
+use std::sync::Arc;
+
 use native_windows_gui::NoticeSender;
 use parking_lot::Mutex;
 use pocket_relay_client_shared::events::TunnelEvent;
