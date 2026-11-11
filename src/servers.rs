@@ -52,7 +52,7 @@ pub fn start_all_servers(ctx: Arc<ClientContext>, tunnel_state_ref: TunnelStateR
 /// tunnel state accordingly
 async fn tunnel_state_worker(
     tunnel_state_ref: TunnelStateRef,
-    event_rx: mpsc::UnboundedReceiver<TunnelEvent>,
+    mut event_rx: mpsc::UnboundedReceiver<TunnelEvent>,
 ) {
     spawn_server_task(async move {
         while let Some(event) = event_rx.recv().await {
@@ -75,8 +75,12 @@ async fn start_tunnel_server(
     match ctx.tunnel_port {
         // When UDP tunnel server port is available use the faster UDP tunnel server
         Some(tunnel_port) => {
-            let err = match udp_tunnel::start_udp_tunnel_server(ctx.clone(), tunnel_port, event_tx)
-                .await
+            let err = match udp_tunnel::start_udp_tunnel_server(
+                ctx.clone(),
+                tunnel_port,
+                event_tx.clone(),
+            )
+            .await
             {
                 // Encountered error with UDP tunnel
                 Err(err) => err,
