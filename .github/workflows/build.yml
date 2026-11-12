@@ -25,7 +25,6 @@ jobs:
             - name: Install Rust
               uses: dtolnay/rust-toolchain@nightly
               with:
-                  targets: ${{ matrix.target }}
                   components: rust-src
 
             # Cache Rust dependencies and build artifacts
