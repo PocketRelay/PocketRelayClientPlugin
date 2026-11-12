@@ -20,8 +20,7 @@ jobs:
         strategy:
             matrix:
                 include:
-                    - target: i686-pc-windows-msvc
-                      toolchain: 1.75.0
+                    - target: i686-win7-windows-msvc
                       filename: pocket-relay-plugin.asi
 
         steps:
@@ -30,10 +29,9 @@ jobs:
 
             # Setup rust for building the plugin
             - name: Install Rust
-              uses: dtolnay/rust-toolchain@stable
+              uses: dtolnay/rust-toolchain@nightly
               with:
                   targets: ${{ matrix.target }}
-                  toolchain: ${{ matrix.toolchain }}
 
             # Cache Rust dependencies and build artifacts
             - name: Cache Rust dependencies

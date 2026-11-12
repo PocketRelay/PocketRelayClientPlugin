@@ -14,10 +14,10 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # Shared backing library
-pocket-relay-client-shared = { version = "0.4" }
+pocket-relay-client-shared = { version = "1.0.0" }
 
 # Logging
-env_logger = "0.10"
+env_logger = "0.11"
 log = "0.4"
 log-panics = { version = "2", features = ["with-backtrace"] }
 
@@ -30,10 +30,11 @@ native-windows-gui = { version = "1", features = ["notice"] }
 native-windows-derive = { version = "1" }
 
 futures = "0.3"
-parking_lot = "0.12.1"
+parking_lot = "0.13"
+minhook = "0.9.0"
 
 [dependencies.windows-sys]
-version = "0.52"
+version = "0.61"
 features = [
   # Foundational types
   "Win32_Foundation",

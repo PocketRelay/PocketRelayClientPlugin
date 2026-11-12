@@ -6,7 +6,7 @@
 
 use std::{mem::swap, sync::Mutex};
 use windows_sys::Win32::{
-    Foundation::{CloseHandle, FALSE, INVALID_HANDLE_VALUE},
+    Foundation::{CloseHandle, FALSE, HANDLE, INVALID_HANDLE_VALUE},
     System::{
         Diagnostics::ToolHelp::{
             CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
@@ -59,7 +59,7 @@ pub fn suspend_all_threads() {
                 )
             };
 
-            if thread_handle != 0 {
+            if !thread_handle.is_null() {
                 unsafe {
                     SuspendThread(thread_handle);
                     CloseHandle(thread_handle);
@@ -108,7 +108,7 @@ pub fn resume_all_threads() {
 
     // Resume the threads that were suspended
     for thread_id in suspended_threads {
-        let thread_handle = unsafe {
+        let thread_handle: HANDLE = unsafe {
             OpenThread(
                 THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
                 0,
@@ -116,7 +116,7 @@ pub fn resume_all_threads() {
             )
         };
 
-        if thread_handle != 0 {
+        if !thread_handle.is_null() {
             unsafe {
                 ResumeThread(thread_handle);
                 CloseHandle(thread_handle);
