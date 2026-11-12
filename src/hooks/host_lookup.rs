@@ -1,6 +1,6 @@
-use crate::core::servers::has_server_tasksmass;
 use log::debug;
 use minhook::MinHook;
+use pocket_relay_client_shared::servers::has_server_tasks;
 use std::{
     ffi::{CStr, CString},
     os::raw::c_void,
@@ -17,24 +17,25 @@ use windows_sys::{
 
 type GetHostByNameFn = unsafe extern "system" fn(name: PCSTR) -> *mut HOSTENT;
 
-static ORIGINAL_GETHOSTBYNAME: LazyLock<(GetHostByNameFn, GetHostByNameFn)> = LazyLock::new(|| {
-    let ws2_32 = unsafe { GetModuleHandleA(b"ws2_32.dll\0".as_ptr()) };
-    if ws2_32.is_null() {
-        panic!("Failed to obtain handle for ws2_32.dll");
-    }
+static ORIGINAL_GETHOSTBYNAME: LazyLock<(GetHostByNameFn, GetHostByNameFn)> =
+    LazyLock::new(|| unsafe {
+        let ws2_32 = GetModuleHandleA(b"ws2_32.dll\0".as_ptr());
+        if ws2_32.is_null() {
+            panic!("Failed to obtain handle for ws2_32.dll");
+        }
 
-    let target_addr = unsafe { GetProcAddress(ws2_32, b"gethostbyname\0".as_ptr()) };
-    let Some(target_fn) = target_addr else {
-        panic!("Failed to locate address of gethostbyname() inside ws2_32.dll");
-    };
+        let target_addr = GetProcAddress(ws2_32, b"gethostbyname\0".as_ptr());
+        let Some(target_fn) = target_addr else {
+            panic!("Failed to locate address of gethostbyname() inside ws2_32.dll");
+        };
 
-    let target_fn: GetHostByNameFn = unsafe { std::mem::transmute(target_fn) };
+        let target_fn: GetHostByNameFn = std::mem::transmute(target_fn);
 
-    let original = unsafe { MinHook::create_hook(target_fn as _, fake_gethostbyname as _) }
-        .expect("failed to create hook");
-    let original: GetHostByNameFn = unsafe { std::mem::transmute(original) };
-    (original, target_fn)
-});
+        let original = MinHook::create_hook(target_fn as _, fake_gethostbyname as _)
+            .expect("failed to create hook");
+        let original: GetHostByNameFn = std::mem::transmute(original);
+        (original, target_fn)
+    });
 
 /// Function used to override the normal functionality for `gethostbyname` and
 /// replace lookups for gosredirector.ea.com with localhost redirects

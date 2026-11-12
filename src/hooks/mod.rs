@@ -1,7 +1,7 @@
 use log::debug;
 
 pub mod host_lookup;
-pub mod mem;
+pub mod pattern;
 pub mod process_event;
 
 /// Applies all hooks
